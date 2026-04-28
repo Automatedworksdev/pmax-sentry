@@ -4,12 +4,24 @@
 (function() {
   'use strict';
   
+  console.log('[PMax Sentry] Content script loaded on:', window.location.href);
+  
+  // Safe mode detection - expanded for mock testing
   const isSafeMode = () => {
-    return window.location.href.includes('cm/placements') || 
-           window.location.href.includes('placements');
+    const url = window.location.href.toLowerCase();
+    const isSafe = url.includes('cm/placements') || 
+           url.includes('placements') ||
+           url.includes('mock_google_ads');
+    console.log('[PMax Sentry] Safe mode check:', isSafe, 'URL:', url);
+    return isSafe;
   };
   
-  if (!isSafeMode()) return;
+  if (!isSafeMode()) {
+    console.log('[PMax Sentry] Not in safe mode, exiting');
+    return;
+  }
+  
+  console.log('[PMax Sentry] Content Script Loaded - Safe Mode Active');
   
   // Logger
   const Logger = {
@@ -25,6 +37,8 @@
   let observer = null;
   let badgeInjected = false;
   let highlightSuspected = true;
+  let messageRetryCount = 0;
+  const MAX_RETRIES = 3;
   
   // Data caches (loaded from background via storage)
   let channelSet = new Set();
@@ -40,6 +54,7 @@
   
   // Initialize - check license status first
   async function initialize() {
+    Logger.log('Initializing...');
     const result = await chrome.storage.local.get(['licenseValidated', 'channelSet', 'suspectedKeywords']);
     
     isLicensed = result.licenseValidated === true;
@@ -55,6 +70,32 @@
     
     injectBadge();
     initObserver();
+    
+    // Notify background that content script is ready
+    sendMessageWithRetry({ action: 'contentScriptReady' });
+  }
+  
+  // Send message with retry
+  function sendMessageWithRetry(message, retryCount = 0) {
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          Logger.error('Message failed:', chrome.runtime.lastError.message);
+          if (retryCount < MAX_RETRIES) {
+            Logger.log(`Retrying message (${retryCount + 1}/${MAX_RETRIES})...`);
+            setTimeout(() => sendMessageWithRetry(message, retryCount + 1), 500);
+          }
+        } else {
+          Logger.log('Message succeeded:', response);
+        }
+      });
+    } catch (e) {
+      Logger.error('Exception sending message:', e);
+      if (retryCount < MAX_RETRIES) {
+        Logger.log(`Retrying after exception (${retryCount + 1}/${MAX_RETRIES})...`);
+        setTimeout(() => sendMessageWithRetry(message, retryCount + 1), 500);
+      }
+    }
   }
   
   // Inject status badge
@@ -62,8 +103,7 @@
     if (badgeInjected) return;
     
     const statusColor = isLicensed ? 'rgba(26, 115, 232, 0.9)' : 'rgba(156, 163, 175, 0.9)';
-    const statusText = isLicensed ? 'Sentry Active' : 'License Required';
-    const statusIcon = isLicensed ? '🛡️' : '🔒';
+    const statusText = isLicensed ? '🛡️ Sentry Active' : '🔒 License Required';
     
     const badge = document.createElement('div');
     badge.id = 'pmax-sentry-badge';
@@ -85,20 +125,16 @@
         align-items: center;
         gap: 6px;
         cursor: ${isLicensed ? 'default' : 'pointer'};
-      ">
-        <span>${statusIcon}</span>
+      "
+      onclick="${isLicensed ? '' : "chrome.runtime.sendMessage({action:'openLicensePanel'})"}"
+      >
         <span>${statusText}</span>
       </div>
     `;
     
-    if (!isLicensed) {
-      badge.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ action: 'openLicensePanel' });
-      });
-    }
-    
     document.body.appendChild(badge);
     badgeInjected = true;
+    Logger.log('Badge injected');
   }
   
   // Classification using background-provided data
@@ -111,6 +147,7 @@
     
     // Tier 1: O(1) exact match
     if (channelSet.has(normalized)) {
+      Logger.log(`Tier 1 match: "${normalized}"`);
       return { tier: 'tier1', keyword: null };
     }
     
@@ -118,6 +155,7 @@
     if (highlightSuspected) {
       for (const keyword of suspectedKeywords) {
         if (normalized.includes(keyword)) {
+          Logger.log(`Tier 2 match: "${normalized}" contains "${keyword}"`);
           return { tier: 'tier2', keyword };
         }
       }
@@ -165,28 +203,52 @@
   function extractChannelName(row) {
     const cells = row.querySelectorAll('td, [role="cell"]');
     for (const cell of cells) {
+      // Skip checkbox cells
+      if (cell.querySelector('input[type="checkbox"]')) continue;
+      
       const text = cell.textContent?.trim();
-      if (text && text.length > 2) return text;
+      // Look for meaningful text (channel names)
+      if (text && text.length > 2 && !text.match(/^[\d,]+$/)) {
+        // Remove badge text like "Confirmed Junk", "Suspected Junk", "Clean"
+        return text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
+      }
     }
     return '';
   }
   
   // Scan placements
   async function scanPlacements() {
+    Logger.log('Starting scan...');
+    
     if (!isLicensed) {
+      Logger.log('License required for scan');
       return { error: 'License required', needsLicense: true };
     }
     
-    Logger.log('Scanning with licensed data...');
+    Logger.log(`Scanning with ${channelSet.size} channels, ${suspectedKeywords.size} keywords`);
     
     tier1Placements = [];
     tier2Placements = [];
     totalSpend = { tier1: 0, tier2: 0 };
     
-    const rows = document.querySelectorAll('table tr, [role="row"]');
+    // Try multiple selectors for rows
+    let rows = document.querySelectorAll('table tr, [role="row"], .particle-table-row, tr[data-row-id]');
+    Logger.log(`Found ${rows.length} rows`);
     
-    rows.forEach(row => {
+    if (rows.length === 0) {
+      Logger.error('No rows found on page');
+      return { error: 'No placement data found', success: false };
+    }
+    
+    rows.forEach((row, index) => {
+      // Skip header rows
+      if (row.querySelector('th') || row.closest('thead')) return;
+      
       const name = extractChannelName(row);
+      if (!name) return;
+      
+      Logger.log(`Row ${index}: "${name}"`);
+      
       const classification = classifyChannel(name);
       
       if (classification.tier === 'tier1' || classification.tier === 'tier2') {
@@ -213,7 +275,10 @@
       }
     });
     
+    Logger.log(`Scan complete: ${tier1Placements.length} tier1, ${tier2Placements.length} tier2`);
+    
     return {
+      success: true,
       tier1: tier1Placements.map(p => ({ channel: p.channel, spend: p.spend })),
       tier2: tier2Placements.map(p => ({ channel: p.channel, spend: p.spend, keyword: p.classification.keyword })),
       totalSpend,
@@ -226,6 +291,7 @@
   
   // Exclude
   async function performExclusion() {
+    Logger.log('Starting exclusion...');
     const all = [...tier1Placements];
     if (highlightSuspected) all.push(...tier2Placements);
     
@@ -240,10 +306,12 @@
           count++;
           await new Promise(r => setTimeout(r, 150));
         }
-      } catch (e) {}
+      } catch (e) {
+        Logger.error('Error clicking checkbox:', e);
+      }
     }
     
-    // Trigger exclusion flow
+    // Trigger exclusion flow (Google Ads specific)
     try {
       await new Promise(r => setTimeout(r, 300));
       const editBtn = [...document.querySelectorAll('button, [role="button"]')]
@@ -255,7 +323,9 @@
           .find(b => b.textContent.toLowerCase().includes('exclude'));
         if (excludeBtn) excludeBtn.click();
       }
-    } catch (e) {}
+    } catch (e) {
+      Logger.error('Error in exclusion flow:', e);
+    }
     
     return { success: true, excludedCount: count };
   }
@@ -281,15 +351,19 @@
       if (isSafeMode()) reapplyHighlights();
     });
     observer.observe(document.body, { childList: true, subtree: true });
+    Logger.log('Observer initialized');
   }
   
   // Message handlers
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    Logger.log('Received message:', request.action);
     
     if (request.action === 'scanPlacements') {
       scanPlacements().then(result => {
-        sendResponse({ success: !result.error, ...result });
+        Logger.log('Scan result:', result);
+        sendResponse(result);
       }).catch(err => {
+        Logger.error('Scan error:', err);
         sendResponse({ success: false, error: err.message });
       });
       return true;
@@ -299,6 +373,7 @@
       performExclusion().then(result => {
         sendResponse(result);
       }).catch(err => {
+        Logger.error('Exclusion error:', err);
         sendResponse({ success: false, error: err.message });
       });
       return true;
@@ -322,14 +397,19 @@
     }
     
     if (request.action === 'licenseUpdated') {
-      // Reload from storage
       initialize();
       sendResponse({ success: true });
+      return true;
+    }
+    
+    if (request.action === 'ping') {
+      sendResponse({ pong: true, safeMode: isSafeMode() });
       return true;
     }
   });
   
   // Start
+  Logger.log('Starting initialization...');
   initialize();
-  Logger.log('Content script initialized');
+  
 })();

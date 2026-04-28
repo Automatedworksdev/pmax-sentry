@@ -34,11 +34,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 } };
   let currentLicense = null;
   
+  // Retry configuration
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 500;
+  
   // Check license on startup
   checkLicenseStatus();
   
   function checkLicenseStatus() {
     chrome.runtime.sendMessage({ action: 'getLicenseStatus' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('License check error:', chrome.runtime.lastError);
+        // Retry
+        setTimeout(checkLicenseStatus, 1000);
+        return;
+      }
+      
       if (response && response.valid) {
         currentLicense = response;
         showDashboard();
@@ -68,6 +79,28 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboardView.classList.add('hidden');
   }
   
+  // Send message with retry
+  function sendMessageWithRetry(message, retryCount = 0) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(`Message failed (attempt ${retryCount + 1}):`, chrome.runtime.lastError);
+          
+          if (retryCount < MAX_RETRIES) {
+            console.log(`Retrying in ${RETRY_DELAY}ms...`);
+            setTimeout(() => {
+              sendMessageWithRetry(message, retryCount + 1).then(resolve);
+            }, RETRY_DELAY);
+          } else {
+            resolve({ error: chrome.runtime.lastError.message, needsRetry: true });
+          }
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+  
   // License validation
   validateBtn.addEventListener('click', () => {
     const key = licenseInput.value.trim();
@@ -80,11 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
     validateBtn.textContent = 'Validating...';
     licenseStatus.textContent = '';
     
-    chrome.runtime.sendMessage({ action: 'validateLicense', key }, (response) => {
+    sendMessageWithRetry({ action: 'validateLicense', key }).then((response) => {
       validateBtn.disabled = false;
       validateBtn.textContent = 'Activate';
       
-      if (response.valid) {
+      if (response && response.valid) {
         currentLicense = response;
         showLicenseSuccess(response);
         setTimeout(() => {
@@ -92,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
           updateLicenseInfo();
         }, 1500);
       } else {
-        showLicenseError(response.error || 'Invalid license key');
+        showLicenseError(response?.error || 'Invalid license key');
       }
     });
   });
@@ -134,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const url = tabs[0]?.url || '';
       const statusEl = document.getElementById('status');
-      if (url.includes('ads.google.com')) {
+      if (url.includes('ads.google.com') || url.includes('mock_google_ads')) {
         statusEl.textContent = 'Ready to scan';
         statusEl.classList.add('ready');
       } else {
@@ -162,16 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: 'toggleSuspected',
-          enabled
-        });
+        sendMessageWithRetry({ action: 'toggleSuspected', enabled }).then(() => {});
       }
     });
   });
   
   // Scan
-  scanBtn.addEventListener('click', () => {
+  scanBtn.addEventListener('click', async () => {
     const btnText = scanBtn.querySelector('.btn-text');
     const spinner = scanBtn.querySelector('.spinner');
     const statusEl = document.getElementById('status');
@@ -182,49 +212,78 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.textContent = 'Scanning...';
     statusEl.className = 'status';
     
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]?.id) return;
-      
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (response) => {
-        btnText.textContent = 'Scan Placements';
-        spinner.classList.add('hidden');
-        scanBtn.disabled = false;
-        
-        if (chrome.runtime.lastError) {
-          statusEl.textContent = 'Error: Refresh page';
-          statusEl.classList.add('error');
-          return;
-        }
-        
-        if (response.needsLicense) {
-          statusEl.textContent = 'License required';
-          statusEl.classList.add('error');
-          showLicenseView();
-          return;
-        }
-        
-        if (!response.success) {
-          statusEl.textContent = response.error || 'Scan failed';
-          statusEl.classList.add('error');
-          return;
-        }
-        
-        scanResults = response;
-        chrome.storage.local.set({
-          lastScanTime: Date.now(),
-          lastResults: scanResults
-        });
-        
-        updateDisplay();
-        updateButtonStates();
-        
-        const total = (response.counts?.tier1 || 0) + (response.counts?.tier2 || 0);
-        statusEl.textContent = `Found ${total} placements`;
-        statusEl.classList.add('success');
-        
-        showToast(`Found ${response.counts?.tier1 || 0} confirmed, ${response.counts?.tier2 || 0} suspected`);
+    try {
+      const tabs = await new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, resolve);
       });
-    });
+      
+      if (!tabs[0]?.id) {
+        throw new Error('No active tab');
+      }
+      
+      // Send message with retry
+      const response = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (resp) => {
+          if (chrome.runtime.lastError) {
+            console.error('First attempt failed:', chrome.runtime.lastError);
+            // Retry once
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (retryResp) => {
+                resolve(retryResp || { error: chrome.runtime.lastError?.message || 'Scan failed' });
+              });
+            }, 500);
+          } else {
+            resolve(resp);
+          }
+        });
+      });
+      
+      btnText.textContent = 'Scan Placements';
+      spinner.classList.add('hidden');
+      scanBtn.disabled = false;
+      
+      if (!response) {
+        statusEl.textContent = 'Error: Content script not responding. Refresh page.';
+        statusEl.classList.add('error');
+        return;
+      }
+      
+      if (response.needsLicense) {
+        statusEl.textContent = 'License required';
+        statusEl.classList.add('error');
+        showLicenseView();
+        return;
+      }
+      
+      if (!response.success) {
+        statusEl.textContent = response.error || 'Scan failed';
+        statusEl.classList.add('error');
+        return;
+      }
+      
+      scanResults = response;
+      chrome.storage.local.set({
+        lastScanTime: Date.now(),
+        lastResults: scanResults
+      });
+      
+      updateDisplay();
+      updateButtonStates();
+      
+      const total = (response.counts?.tier1 || 0) + (response.counts?.tier2 || 0);
+      statusEl.textContent = `Found ${total} placements`;
+      statusEl.classList.add('success');
+      
+      showToast(`Found ${response.counts?.tier1 || 0} confirmed, ${response.counts?.tier2 || 0} suspected`);
+      
+    } catch (err) {
+      console.error('Scan error:', err);
+      btnText.textContent = 'Scan Placements';
+      spinner.classList.add('hidden');
+      scanBtn.disabled = false;
+      statusEl.textContent = 'Error: ' + err.message;
+      statusEl.classList.add('error');
+    }
   });
   
   // Exclude
@@ -238,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]?.id) return;
       
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, (response) => {
+      sendMessageWithRetry({ action: 'performExclusion' }).then((response) => {
         if (response?.success) {
           excludeBtn.textContent = `Excluded ${response.excludedCount} ✓`;
           showToast(`Excluded ${response.excludedCount} placements`);
