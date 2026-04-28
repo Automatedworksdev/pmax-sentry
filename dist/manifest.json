@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PMax Sentry",
-  "version": "0.1.0",
+  "version": "2.1.0",
   "description": "Automatically identify and exclude low-quality YouTube placements in Performance Max campaigns",
   "permissions": [
     "sidePanel",
@@ -10,7 +10,8 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://ads.google.com/*"
+    "https://ads.google.com/*",
+    "https://*.supabase.co/*"
   ],
   "action": {
     "default_title": "Click to open PMax Sentry"
@@ -26,12 +27,6 @@
       "matches": ["https://ads.google.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["junk_channels.json", "icons/*"],
-      "matches": ["https://ads.google.com/*"]
     }
   ],
   "icons": {
