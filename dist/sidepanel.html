@@ -3,57 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMax Sentry v2.2 - Intelligence Engine</title>
+  <title>PMax Sentry v2.2</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <!-- LICENSE VIEW -->
-  <div id="license-view" class="license-view view">
-    
-    <!-- Logo -->
-    <img src="icons/icon48.png" alt="PMax Sentry" class="logo" onerror="this.style.display='none'">
-    
-    <!-- Brand -->
+  <div id="license-view" class="license-view">
+    <img src="icons/icon48.png" alt="PMax Sentry" class="logo">
     <h1>PMax Sentry</h1>
     <p class="subtitle">Intelligence Engine v2.2</p>
     
-    <!-- Activation Card -->
     <div class="card">
       <h3>Activate License</h3>
-      <p class="description">
-        Enter your license key to activate the Intelligence Engine
-      </p>
-      
-      <input 
-        type="text" 
-        id="license-key" 
-        class="input" 
-        placeholder="PMX-XXXX-XXXX-XXXX"
-        autocomplete="off"
-        spellcheck="false"
-      >
-      
-      <button id="validate-license-btn" class="btn">
-        <span id="btn-text">Activate</span>
-        <span id="btn-spinner" class="spinner hidden"></span>
-      </button>
-      
+      <p class="description">Enter your license key to activate</p>
+      <input type="text" id="license-key" class="input" placeholder="PMX-XXXX-XXXX-XXXX">
+      <button id="validate-license-btn" class="btn">Activate</button>
       <div id="license-status" class="status-text"></div>
     </div>
     
-    <!-- Help -->
-    <div class="help-text">
-      <p>Need a license key? Contact your account manager</p>
-    </div>
-    
+    <div class="help-text"><p>Need help? Contact support</p></div>
   </div>
 
-  <!-- DASHBOARD VIEW (Hidden initially) -->
-  <div id="dashboard-view" class="dashboard-view view hidden">
-    <div style="padding: 20px;">
-      <h2>Dashboard</h2>
-      <button id="scan-btn">Scan Placements</button>
+  <!-- DASHBOARD VIEW -->
+  <div id="dashboard-view" class="dashboard-view hidden">
+    
+    <!-- Header -->
+    <div class="dash-header">
+      <div class="dash-brand">
+        <img src="icons/icon48.png" alt="PMax Sentry" class="dash-logo">
+        <div>
+          <h2>PMax Sentry</h2>
+          <span class="dash-version">v2.2</span>
+        </div>
+      </div>
+      <div class="dash-badge">✓ Active</div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="dash-stats">
+      <div class="stat-box">
+        <span class="stat-num" id="channel-count">2,031</span>
+        <span class="stat-label">Channels</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="data-version">2.2</span>
+        <span class="stat-label">Version</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="last-sync">Just now</span>
+        <span class="stat-label">Synced</span>
+      </div>
+    </div>
+    
+    <!-- Status Bar -->
+    <div id="status" class="dash-status">Ready to scan</div>
+    
+    <!-- Actions -->
+    <div class="dash-actions">
+      <button id="scan-btn" class="dash-btn dash-btn-primary">Scan Placements</button>
+      <button id="exclude-btn" class="dash-btn dash-btn-danger" disabled>Exclude All</button>
+      <button id="save-btn" class="dash-btn dash-btn-secondary" disabled>Save Report</button>
+    </div>
+    
+    <!-- Tier 1 Results -->
+    <div class="result-card">
+      <div class="result-header">
+        <h3>🔴 Confirmed Waste</h3>
+        <div class="result-stats">
+          <span id="tier1-count">0</span>
+          <span id="tier1-spend">£0.00</span>
+        </div>
+      </div>
+      <ul id="tier1-list" class="placement-list"></ul>
+    </div>
+    
+    <!-- Tier 2 Results -->
+    <div class="result-card">
+      <div class="result-header">
+        <h3>🟡 Suspected Waste</h3>
+        <div class="result-stats">
+          <span id="tier2-count">0</span>
+          <span id="tier2-spend">£0.00</span>
+        </div>
+      </div>
+      <ul id="tier2-list" class="placement-list"></ul>
+    </div>
+    
+    <!-- Category Breakdown -->
+    <div class="result-card">
+      <div class="result-header">
+        <h3>📊 Category Breakdown</h3>
+      </div>
+      <div id="category-breakdown"></div>
     </div>
     
   </div>
