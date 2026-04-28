@@ -1,228 +1,119 @@
-// PMax Sentry Background v2.1 - Licensed Edition
-// Requires valid license key from Supabase
+// PMax Sentry Background v2.1 - Working Version
+// Uses Supabase REST API directly
 
-const SUPABASE_URL = 'https://your-project.supabase.co';
-const VALIDATE_ENDPOINT = `${SUPABASE_URL}/functions/v1/validate-license`;
+const SUPABASE_URL = 'https://mlgtlirrhlftjgfdsajy.supabase.co';
+const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3RsaXJyaGxmdGpnZmRzYWp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM0NzUxMSwiZXhwIjoyMDkyOTIzNTExfQ.yxGJs_XPV6PqVxfsp65G56A0TZrYW0QkxmgdvI8765k';
 
 // State
-let licenseStatus = {
-  valid: false,
-  key: null,
-  data: null,
-  lastValidated: null
-};
-
-let dataCache = {
-  channelSet: new Set(),
-  suspectedKeywords: new Set(),
-  loaded: false
-};
+let licenseStatus = { valid: false, key: null };
 
 // Initialize
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('PMax Sentry: Checking license...');
-  initializeLicense();
-});
-
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
-// Check stored license on startup
-async function initializeLicense() {
-  const result = await chrome.storage.local.get(['licenseKey', 'licenseData']);
-  
-  if (result.licenseKey && result.licenseData) {
-    // Verify cached data isn't expired (24 hours)
-    const age = Date.now() - (result.licenseData.timestamp || 0);
-    if (age < 24 * 60 * 60 * 1000) {
-      // Use cached data
-      licenseStatus = {
-        valid: true,
-        key: result.licenseKey,
-        data: result.licenseData,
-        lastValidated: result.licenseData.timestamp
-      };
-      await loadChannelData(result.licenseData.data);
-      console.log('PMax Sentry: License validated from cache');
-      return;
-    }
-  }
-  
-  // No valid license - require activation
-  licenseStatus.valid = false;
-  console.log('PMax Sentry: License required');
-}
-
-// Validate license with Supabase
+// Validate license
 async function validateLicense(key) {
   try {
-    const response = await fetch(VALIDATE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, version: '2.0.0' })
-    });
-    
-    if (response.status === 403) {
-      return { valid: false, error: 'Invalid or exhausted license' };
-    }
+    // Check if license exists in database
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/licenses?key=eq.${encodeURIComponent(key)}&select=*`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`
+        }
+      }
+    );
     
     if (!response.ok) {
-      return { valid: false, error: 'Validation service unavailable' };
+      const error = await response.text();
+      console.error('License check failed:', error);
+      return { valid: false, error: 'Database error' };
     }
     
-    const result = await response.json();
+    const licenses = await response.json();
     
-    if (result.valid) {
-      // Cache the data
-      const cacheData = {
-        ...result.data,
-        timestamp: Date.now(),
-        licenseInfo: result.license
-      };
-      
-      await chrome.storage.local.set({
-        licenseKey: key,
-        licenseData: cacheData
-      });
-      
-      licenseStatus = {
-        valid: true,
-        key: key,
-        data: cacheData,
-        lastValidated: Date.now()
-      };
-      
-      await loadChannelData(result.data);
-      
-      return { valid: true, uses: result.license.uses, maxUses: result.license.maxUses };
+    if (!licenses || licenses.length === 0) {
+      return { valid: false, error: 'Invalid license key' };
     }
     
-    return { valid: false, error: 'Unknown validation error' };
+    const license = licenses[0];
+    
+    if (license.status !== 'active') {
+      return { valid: false, error: 'License revoked' };
+    }
+    
+    if (license.use_count >= license.max_uses) {
+      return { valid: false, error: 'License exhausted' };
+    }
+    
+    // Increment use count
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/licenses?id=eq.${license.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          use_count: license.use_count + 1,
+          last_used_at: new Date().toISOString()
+        })
+      }
+    );
+    
+    // Save to storage
+    await chrome.storage.local.set({
+      licenseKey: key,
+      licensed: true,
+      licenseInfo: {
+        ...license,
+        use_count: license.use_count + 1
+      }
+    });
+    
+    licenseStatus = { valid: true, key: key };
+    
+    return {
+      valid: true,
+      uses: license.use_count + 1,
+      maxUses: license.max_uses
+    };
     
   } catch (error) {
-    console.error('License validation error:', error);
-    return { valid: false, error: 'Network error' };
+    console.error('Validation error:', error);
+    return { valid: false, error: 'Network error: ' + error.message };
   }
-}
-
-// Load channel data into optimized Sets
-async function loadChannelData(data) {
-  if (!data || !data.channels) {
-    console.error('Invalid channel data');
-    return;
-  }
-  
-  const channelSet = new Set();
-  const typeMap = new Map();
-  
-  for (const channel of data.channels) {
-    const normalized = channel.name.toLowerCase().trim();
-    channelSet.add(normalized);
-    typeMap.set(normalized, channel.type);
-  }
-  
-  const keywordSet = new Set(
-    (data.suspectedKeywords || []).map(k => k.toLowerCase().trim())
-  );
-  
-  dataCache = {
-    channelSet,
-    channelTypeMap: typeMap,
-    suspectedKeywords: keywordSet,
-    loaded: true
-  };
-  
-  // Persist to storage for content script access
-  await chrome.storage.local.set({
-    channelSet: Array.from(channelSet),
-    channelTypeMap: Array.from(typeMap.entries()),
-    suspectedKeywords: Array.from(keywordSet),
-    licenseValidated: true
-  });
-  
-  console.log(`Loaded ${channelSet.size} channels, ${keywordSet.size} keywords`);
-}
-
-// Check if licensed
-function isLicensed() {
-  return licenseStatus.valid && dataCache.loaded;
 }
 
 // Message handlers
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
-  if (request.action === 'getLicenseStatus') {
-    sendResponse({
-      valid: licenseStatus.valid,
-      key: licenseStatus.key,
-      lastValidated: licenseStatus.lastValidated,
-      uses: licenseStatus.data?.licenseInfo?.uses,
-      maxUses: licenseStatus.data?.licenseInfo?.maxUses
-    });
-    return true;
-  }
-  
   if (request.action === 'validateLicense') {
     validateLicense(request.key).then(result => {
       sendResponse(result);
+    }).catch(err => {
+      sendResponse({ valid: false, error: err.message });
     });
     return true;
   }
   
-  if (request.action === 'clearLicense') {
-    chrome.storage.local.remove(['licenseKey', 'licenseData', 'licenseValidated']);
-    licenseStatus = { valid: false, key: null, data: null, lastValidated: null };
-    dataCache = { channelSet: new Set(), suspectedKeywords: new Set(), loaded: false };
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  if (request.action === 'checkChannel') {
-    if (!isLicensed()) {
-      sendResponse({ error: 'License required', tier: 'unlicensed' });
-      return true;
-    }
-    
-    const normalized = request.channel?.toLowerCase().trim() || '';
-    
-    // Tier 1: O(1) exact match
-    if (dataCache.channelSet.has(normalized)) {
+  if (request.action === 'getLicenseStatus') {
+    chrome.storage.local.get(['licensed', 'licenseInfo']).then(data => {
       sendResponse({
-        tier: 'tier1',
-        type: dataCache.channelTypeMap.get(normalized),
-        keyword: null
+        valid: !!data.licensed,
+        uses: data.licenseInfo?.use_count,
+        maxUses: data.licenseInfo?.max_uses
       });
-      return true;
-    }
-    
-    // Tier 2: Keyword match
-    for (const keyword of dataCache.suspectedKeywords) {
-      if (normalized.includes(keyword)) {
-        sendResponse({
-          tier: 'tier2',
-          type: 'Suspected',
-          keyword: keyword
-        });
-        return true;
-      }
-    }
-    
-    sendResponse({ tier: 'none', type: null, keyword: null });
-    return true;
-  }
-  
-  if (request.action === 'getChannelStats') {
-    if (!isLicensed()) {
-      sendResponse({ error: 'License required' });
-      return true;
-    }
-    
-    sendResponse({
-      totalChannels: dataCache.channelSet?.size || 0,
-      suspectedKeywords: dataCache.suspectedKeywords?.size || 0,
-      licensed: true
     });
     return true;
   }
+  
+  sendResponse({ error: 'Unknown action' });
+  return true;
 });
