@@ -1,8 +1,8 @@
 // PMax Sentry Background v2.1 - Licensed Edition
-// Uses Supabase REST API directly (no Edge Function needed)
+// Requires valid license key from Supabase
 
 const SUPABASE_URL = 'https://mlgtlirrhlftjgfdsajy.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3RsaXJyaGxmdGpnZmRzYWp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNDc1MTEsImV4cCI6MjA5MjkyMzUxMX0.DyEff3_g7u3Brv7AdSPO14BbskMC44BBifphkmGezrE';
+const VALIDATE_ENDPOINT = `${SUPABASE_URL}/functions/v1/validate-license`;
 
 // State
 let licenseStatus = {
@@ -36,6 +36,7 @@ async function initializeLicense() {
     // Verify cached data isn't expired (24 hours)
     const age = Date.now() - (result.licenseData.timestamp || 0);
     if (age < 24 * 60 * 60 * 1000) {
+      // Use cached data
       licenseStatus = {
         valid: true,
         key: result.licenseKey,
@@ -48,119 +49,60 @@ async function initializeLicense() {
     }
   }
   
+  // No valid license - require activation
   licenseStatus.valid = false;
   console.log('PMax Sentry: License required');
 }
 
-// Validate license with Supabase REST API directly
+// Validate license with Supabase
 async function validateLicense(key) {
   try {
-    // Step 1: Check if license exists and is valid
-    const licenseResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/licenses?key=eq.${encodeURIComponent(key)}&status=eq.active`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': ANON_KEY,
-          'Authorization': `Bearer ${ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    
-    if (!licenseResponse.ok) {
-      return { valid: false, error: 'Database error' };
-    }
-    
-    const licenses = await licenseResponse.json();
-    
-    if (!licenses || licenses.length === 0) {
-      return { valid: false, error: 'Invalid license key' };
-    }
-    
-    const license = licenses[0];
-    
-    if (license.use_count >= license.max_uses) {
-      return { valid: false, error: 'License exhausted' };
-    }
-    
-    // Step 2: Get junk channel data
-    const dataResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/master_junk_list?version=eq.2.0.0`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': ANON_KEY,
-          'Authorization': `Bearer ${ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    
-    if (!dataResponse.ok) {
-      return { valid: false, error: 'Data unavailable' };
-    }
-    
-    const dataResults = await dataResponse.json();
-    
-    if (!dataResults || dataResults.length === 0) {
-      return { valid: false, error: 'No data found' };
-    }
-    
-    const junkData = dataResults[0].data;
-    
-    // Step 3: Increment use count
-    const newUseCount = license.use_count + 1;
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/licenses?id=eq.${license.id}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey': ANON_KEY,
-          'Authorization': `Bearer ${ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          use_count: newUseCount,
-          last_used_at: new Date().toISOString()
-        })
-      }
-    );
-    
-    // Step 4: Cache the data
-    const cacheData = {
-      ...junkData,
-      timestamp: Date.now(),
-      licenseInfo: {
-        ...license,
-        use_count: newUseCount
-      }
-    };
-    
-    await chrome.storage.local.set({
-      licenseKey: key,
-      licenseData: cacheData
+    const response = await fetch(VALIDATE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, version: '2.0.0' })
     });
     
-    licenseStatus = {
-      valid: true,
-      key: key,
-      data: cacheData,
-      lastValidated: Date.now()
-    };
+    if (response.status === 403) {
+      return { valid: false, error: 'Invalid or exhausted license' };
+    }
     
-    await loadChannelData(junkData);
+    if (!response.ok) {
+      return { valid: false, error: 'Validation service unavailable' };
+    }
     
-    return { 
-      valid: true, 
-      uses: newUseCount, 
-      maxUses: license.max_uses 
-    };
+    const result = await response.json();
+    
+    if (result.valid) {
+      // Cache the data
+      const cacheData = {
+        ...result.data,
+        timestamp: Date.now(),
+        licenseInfo: result.license
+      };
+      
+      await chrome.storage.local.set({
+        licenseKey: key,
+        licenseData: cacheData
+      });
+      
+      licenseStatus = {
+        valid: true,
+        key: key,
+        data: cacheData,
+        lastValidated: Date.now()
+      };
+      
+      await loadChannelData(result.data);
+      
+      return { valid: true, uses: result.license.uses, maxUses: result.license.maxUses };
+    }
+    
+    return { valid: false, error: 'Unknown validation error' };
     
   } catch (error) {
     console.error('License validation error:', error);
-    return { valid: false, error: 'Network error: ' + error.message };
+    return { valid: false, error: 'Network error' };
   }
 }
 

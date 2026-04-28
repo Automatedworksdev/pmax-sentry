@@ -33,5 +33,5 @@ On first run, you'll be prompted to enter a license key.
 - Edge Function: /functions/v1/validate-license
 
 ---
-Build: 2026-04-28T04:16:40.324Z
+Build: 2026-04-28T04:42:29.609Z
 Version: 2.1.0-LICENSED
