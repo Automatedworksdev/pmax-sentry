@@ -6,13 +6,20 @@
   
   console.log('[PMax Sentry] Content script v2.2 loaded');
   
-  // Safe mode detection
+  // Safe mode detection - include mock test file
   const isSafeMode = () => {
     const url = window.location.href.toLowerCase();
-    return url.includes('cm/placements') || url.includes('placements');
+    return url.includes('cm/placements') || 
+           url.includes('placements') || 
+           url.includes('mock_google_ads');
   };
   
-  if (!isSafeMode()) return;
+  if (!isSafeMode()) {
+    console.log('[PMax Sentry] Not in safe mode');
+    return;
+  }
+  
+  console.log('[PMax Sentry] Safe mode active');
   
   // State
   let isLicensed = false;
@@ -172,16 +179,67 @@
     row.dataset.sentryTier = classification.tier;
     row.dataset.sentryCategory = classification.category;
     
-    // Add category badge
-    const badge = document.createElement('span');
-    badge.style.cssText = `display:inline-block;margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;background:${catColor};color:white;font-weight:500;`;
-    badge.textContent = classification.category;
-    
-    const nameCell = row.querySelector('td:not(:first-child)');
+    // Add category badge to second cell
+    const cells = row.querySelectorAll('td');
+    const nameCell = cells[1]; // Second cell is usually the name
     if (nameCell && !nameCell.querySelector('.sentry-cat-badge')) {
+      const badge = document.createElement('span');
       badge.className = 'sentry-cat-badge';
+      badge.style.cssText = `display:inline-block;margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;background:${catColor};color:white;font-weight:500;`;
+      badge.textContent = classification.category;
       nameCell.appendChild(badge);
     }
+  }
+  
+  // Add Report button to row
+  function addReportButton(row, channelName) {
+    // Check if button already exists
+    if (row.querySelector('.pmax-report-btn')) return;
+    
+    // Find the last td cell (actions cell)
+    const cells = row.querySelectorAll('td');
+    const lastCell = cells[cells.length - 1];
+    
+    if (!lastCell) {
+      console.log('[PMax] No cells found for row');
+      return;
+    }
+    
+    // Create report button
+    const btn = document.createElement('button');
+    btn.className = 'pmax-report-btn';
+    btn.title = 'Report this channel as low quality';
+    btn.innerHTML = '🚩';
+    btn.style.cssText = `
+      padding: 4px 8px;
+      font-size: 12px;
+      background: #f1f3f4;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    `;
+    
+    btn.onmouseover = () => {
+      btn.style.background = '#e8eaed';
+    };
+    btn.onmouseout = () => {
+      btn.style.background = '#f1f3f4';
+    };
+    
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('[PMax] Report clicked for:', channelName);
+      // Send message to background to open report modal in sidepanel
+      chrome.runtime.sendMessage({
+        action: 'openReportModal',
+        channel: channelName
+      });
+    };
+    
+    lastCell.appendChild(btn);
+    console.log('[PMax] Added report button for:', channelName);
   }
   
   // Scan
@@ -202,14 +260,21 @@
     categoryTotals = {};
     
     const rows = document.querySelectorAll('table tbody tr, table tr');
+    console.log('[PMax] Found', rows.length, 'rows');
     
-    rows.forEach((row) => {
-      if (row.querySelector('th')) return;
+    rows.forEach((row, index) => {
+      if (row.querySelector('th')) return; // Skip header
       
       const name = extractChannelName(row);
-      if (!name) return;
+      if (!name) {
+        console.log('[PMax] No name found for row', index);
+        return;
+      }
+      
+      console.log('[PMax] Row', index, 'channel:', name);
       
       const classification = classifyChannel(name);
+      console.log('[PMax] Classification:', classification);
       
       if (classification.tier === 'tier1' || classification.tier === 'tier2') {
         const spend = extractSpend(row);
@@ -244,9 +309,13 @@
         
         highlightRow(row, classification);
       }
+      
+      // Add Report button to ALL rows (including clean ones)
+      addReportButton(row, name);
     });
     
-    console.log(`[PMax] Found ${tier1Placements.length} tier1, ${tier2Placements.length} tier2`);
+    console.log(`[PMax] Scan complete: ${tier1Placements.length} tier1, ${tier2Placements.length} tier2`);
+    console.log('[PMax] Category totals:', categoryTotals);
     
     return {
       success: true,
@@ -277,9 +346,12 @@
   
   // Message handlers
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('[PMax] Message received:', request.action);
     
     if (request.action === 'scanPlacements') {
-      scanPlacements().then(sendResponse);
+      scanPlacements().then(result => {
+        sendResponse(result);
+      });
       return true;
     }
     

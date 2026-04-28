@@ -229,12 +229,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
-  // Report button (community)
+  // Report button (community) - clicked in sidepanel
   document.addEventListener('click', (e) => {
     if (e.target.classList.contains('report-btn')) {
       const channel = e.target.dataset.channel;
       showReportModal(channel);
     }
+  });
+  
+  // Handle openReportModal from content script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'openReportModal') {
+      showReportModal(request.channel);
+      sendResponse({ success: true });
+    }
+    return true;
   });
   
   function showReportModal(channel) {
