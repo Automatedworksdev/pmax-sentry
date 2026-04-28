@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMax Sentry</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    
+    <!-- License Activation View -->
+    <div id="license-view" class="license-view">
+      <header>
+        <h1>🔒 PMax Sentry</h1>
+        <p class="subtitle">License Activation Required</p>
+      </header>
+      
+      <div class="license-box">
+        <label for="license-key">Enter License Key</label>
+        <input 
+          type="text" 
+          id="license-key" 
+          placeholder="PMX-XXXX-XXXX-XXXX"
+          autocomplete="off"
+        >
+        
+        <button id="validate-license-btn" class="scan-button">Activate</button>
+        
+        <div id="license-status" class="license-status"></div>
+      </div>
+      
+      <div class="license-help">
+        <p>Don't have a license? Contact support</p>
+        <a href="mailto:automateworksdev@gmail.com" class="help-link">automateworksdev@gmail.com</a>
+      </div>
+    </div>
+    
+    <!-- Onboarding View -->
+    <div id="onboarding-view" class="onboarding hidden">
+      <h1>Welcome to PMax Sentry</h1>
+      <p class="subtitle">Dual-tier detection for Google Ads placements</p>
+      
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Navigate to Placements</h3>
+            <p>Go to Google Ads → Campaigns → Placements</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Scan</h3>
+            <p>Detect <strong>confirmed</strong> (red) and <strong>suspected</strong> (yellow) waste</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Exclude</h3>
+            <p>Review and exclude with one click</p>
+          </div>
+        </div>
+      </div>
+      
+      <button id="get-started-btn" class="scan-button">Get Started</button>
+    </div>
+    
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="dashboard-view hidden">
+      <header>
+        <h1>PMax Sentry v2.1</h1>
+        <div id="license-info"></div>
+        <div id="status" class="status">Ready</div>
+      </header>
+      
+      <section class="toggle-section">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-suspected" checked>
+          <span class="toggle-switch"></span>
+          <span class="toggle-text">Highlight Suspected Content</span>
+        </label>
+      </section>
+      
+      <section class="counters">
+        <div class="counter-card tier1-card">
+          <div class="counter-header">
+            <span class="dot tier1-dot"></span>
+            <span>Confirmed Waste</span>
+          </div>
+          <div class="counter-value" id="tier1-count">0</div>
+          <div class="counter-spend" id="tier1-spend">£0.00</div>
+        </div>
+        
+        <div class="counter-card tier2-card">
+          <div class="counter-header">
+            <span class="dot tier2-dot"></span>
+            <span>Suspected Waste</span>
+          </div>
+          <div class="counter-value" id="tier2-count">0</div>
+          <div class="counter-spend" id="tier2-spend">£0.00</div>
+        </div>
+      </section>
+      
+      <section class="actions">
+        <button id="scan-btn" class="scan-button">
+          <span class="btn-text">Scan Placements</span>
+          <span class="spinner hidden"></span>
+        </button>
+        <button id="exclude-btn" class="exclude-button" disabled>Exclude All</button>
+        <button id="save-btn" class="save-button" disabled>Save Report</button>
+      </section>
+      
+      <section class="placements tier1-section">
+        <div class="section-header">
+          <span class="section-dot tier1-dot"></span>
+          <h3>Confirmed Waste (Red)</h3>
+        </div>
+        <ul id="tier1-list" class="placement-list"></ul>
+      </section>
+      
+      <section id="tier2-section" class="placements tier2-section">
+        <div class="section-header">
+          <span class="section-dot tier2-dot"></span>
+          <h3>Suspected Waste (Yellow)</h3>
+        </div>
+        <ul id="tier2-list" class="placement-list"></ul>
+      </section>
+      
+      <footer>
+        <a href="https://github.com/Automatedworksdev/pmax-sentry" target="_blank" class="help-link">GitHub</a>
+      </footer>
+    </div>
+    
+    <!-- Toast -->
+    <div id="toast" class="toast hidden">
+      <span id="toast-message"></span>
+    </div>
+  </div>
+  
+  <script src="sidepanel.js"></script>
+</body>
+</html>
