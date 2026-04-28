@@ -1,8 +1,9 @@
 // PMax Sentry Background v2.1 - Licensed Edition
-// Requires valid license key from Supabase
+// Uses Supabase REST API with SERVICE ROLE KEY
+// NOTE: In production, use Edge Function instead
 
 const SUPABASE_URL = 'https://mlgtlirrhlftjgfdsajy.supabase.co';
-const VALIDATE_ENDPOINT = `${SUPABASE_URL}/functions/v1/validate-license`;
+const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3RsaXJyaGxmdGpnZmRzYWp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM0NzUxMSwiZXhwIjoyMDkyOTIzNTExfQ.yxGJs_XPV6PqVxfsp65G56A0TZrYW0QkxmgdvI8765k';
 
 // State
 let licenseStatus = {
@@ -33,10 +34,8 @@ async function initializeLicense() {
   const result = await chrome.storage.local.get(['licenseKey', 'licenseData']);
   
   if (result.licenseKey && result.licenseData) {
-    // Verify cached data isn't expired (24 hours)
     const age = Date.now() - (result.licenseData.timestamp || 0);
     if (age < 24 * 60 * 60 * 1000) {
-      // Use cached data
       licenseStatus = {
         valid: true,
         key: result.licenseKey,
@@ -49,60 +48,123 @@ async function initializeLicense() {
     }
   }
   
-  // No valid license - require activation
   licenseStatus.valid = false;
   console.log('PMax Sentry: License required');
 }
 
-// Validate license with Supabase
+// Validate license with Supabase REST API
 async function validateLicense(key) {
   try {
-    const response = await fetch(VALIDATE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, version: '2.0.0' })
+    // Check license
+    const licenseResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/licenses?key=eq.${encodeURIComponent(key)}`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`
+        }
+      }
+    );
+    
+    if (!licenseResponse.ok) {
+      const errorText = await licenseResponse.text();
+      console.error('License check failed:', errorText);
+      return { valid: false, error: 'Database error' };
+    }
+    
+    const licenses = await licenseResponse.json();
+    
+    if (!licenses || licenses.length === 0) {
+      return { valid: false, error: 'Invalid license key' };
+    }
+    
+    const license = licenses[0];
+    
+    if (license.status !== 'active') {
+      return { valid: false, error: 'License revoked' };
+    }
+    
+    if (license.use_count >= license.max_uses) {
+      return { valid: false, error: 'License exhausted' };
+    }
+    
+    // Get junk data
+    const dataResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/master_junk_list?version=eq.2.0.0`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`
+        }
+      }
+    );
+    
+    if (!dataResponse.ok) {
+      return { valid: false, error: 'Data unavailable' };
+    }
+    
+    const dataResults = await dataResponse.json();
+    
+    if (!dataResults || dataResults.length === 0) {
+      return { valid: false, error: 'No data found' };
+    }
+    
+    const junkData = dataResults[0].data;
+    
+    // Update use count
+    const newUseCount = license.use_count + 1;
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/licenses?id=eq.${license.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          use_count: newUseCount,
+          last_used_at: new Date().toISOString()
+        })
+      }
+    );
+    
+    // Cache data
+    const cacheData = {
+      ...junkData,
+      timestamp: Date.now(),
+      licenseInfo: {
+        ...license,
+        use_count: newUseCount
+      }
+    };
+    
+    await chrome.storage.local.set({
+      licenseKey: key,
+      licenseData: cacheData
     });
     
-    if (response.status === 403) {
-      return { valid: false, error: 'Invalid or exhausted license' };
-    }
+    licenseStatus = {
+      valid: true,
+      key: key,
+      data: cacheData,
+      lastValidated: Date.now()
+    };
     
-    if (!response.ok) {
-      return { valid: false, error: 'Validation service unavailable' };
-    }
+    await loadChannelData(junkData);
     
-    const result = await response.json();
-    
-    if (result.valid) {
-      // Cache the data
-      const cacheData = {
-        ...result.data,
-        timestamp: Date.now(),
-        licenseInfo: result.license
-      };
-      
-      await chrome.storage.local.set({
-        licenseKey: key,
-        licenseData: cacheData
-      });
-      
-      licenseStatus = {
-        valid: true,
-        key: key,
-        data: cacheData,
-        lastValidated: Date.now()
-      };
-      
-      await loadChannelData(result.data);
-      
-      return { valid: true, uses: result.license.uses, maxUses: result.license.maxUses };
-    }
-    
-    return { valid: false, error: 'Unknown validation error' };
+    return { 
+      valid: true, 
+      uses: newUseCount, 
+      maxUses: license.max_uses 
+    };
     
   } catch (error) {
     console.error('License validation error:', error);
-    return { valid: false, error: 'Network error' };
+    return { valid: false, error: 'Network error: ' + error.message };
   }
 }
 
@@ -133,7 +195,6 @@ async function loadChannelData(data) {
     loaded: true
   };
   
-  // Persist to storage for content script access
   await chrome.storage.local.set({
     channelSet: Array.from(channelSet),
     channelTypeMap: Array.from(typeMap.entries()),
@@ -186,7 +247,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     const normalized = request.channel?.toLowerCase().trim() || '';
     
-    // Tier 1: O(1) exact match
     if (dataCache.channelSet.has(normalized)) {
       sendResponse({
         tier: 'tier1',
@@ -196,7 +256,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
     
-    // Tier 2: Keyword match
     for (const keyword of dataCache.suspectedKeywords) {
       if (normalized.includes(keyword)) {
         sendResponse({
