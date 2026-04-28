@@ -8,8 +8,36 @@
 </head>
 <body>
   <div class="container">
+    
+    <!-- License Activation View -->
+    <div id="license-view" class="license-view">
+      <header>
+        <h1>🔒 PMax Sentry</h1>
+        <p class="subtitle">License Activation Required</p>
+      </header>
+      
+      <div class="license-box">
+        <label for="license-key">Enter License Key</label>
+        <input 
+          type="text" 
+          id="license-key" 
+          placeholder="PMX-XXXX-XXXX-XXXX"
+          autocomplete="off"
+        >
+        
+        <button id="validate-license-btn" class="scan-button">Activate</button>
+        
+        <div id="license-status" class="license-status"></div>
+      </div>
+      
+      <div class="license-help">
+        <p>Don't have a license? Contact support</p>
+        <a href="mailto:automateworksdev@gmail.com" class="help-link">automateworksdev@gmail.com</a>
+      </div>
+    </div>
+    
     <!-- Onboarding View -->
-    <div id="onboarding-view" class="onboarding">
+    <div id="onboarding-view" class="onboarding hidden">
       <h1>Welcome to PMax Sentry</h1>
       <p class="subtitle">Dual-tier detection for Google Ads placements</p>
       
@@ -40,24 +68,22 @@
       <button id="get-started-btn" class="scan-button">Get Started</button>
     </div>
     
-    <!-- Main Dashboard View -->
+    <!-- Dashboard View -->
     <div id="dashboard-view" class="dashboard-view hidden">
       <header>
-        <h1>PMax Sentry v2.0</h1>
+        <h1>PMax Sentry v2.1</h1>
+        <div id="license-info"></div>
         <div id="status" class="status">Ready</div>
       </header>
       
-      <!-- Toggle Section -->
       <section class="toggle-section">
         <label class="toggle-label">
           <input type="checkbox" id="toggle-suspected" checked>
           <span class="toggle-switch"></span>
           <span class="toggle-text">Highlight Suspected Content</span>
         </label>
-        <p class="toggle-hint">Yellow = suspected waste (keyword match)</p>
       </section>
       
-      <!-- Dual Counters -->
       <section class="counters">
         <div class="counter-card tier1-card">
           <div class="counter-header">
@@ -78,7 +104,6 @@
         </div>
       </section>
       
-      <!-- Actions -->
       <section class="actions">
         <button id="scan-btn" class="scan-button">
           <span class="btn-text">Scan Placements</span>
@@ -88,7 +113,6 @@
         <button id="save-btn" class="save-button" disabled>Save Report</button>
       </section>
       
-      <!-- Tier 1 List -->
       <section class="placements tier1-section">
         <div class="section-header">
           <span class="section-dot tier1-dot"></span>
@@ -97,11 +121,10 @@
         <ul id="tier1-list" class="placement-list"></ul>
       </section>
       
-      <!-- Tier 2 List -->
       <section id="tier2-section" class="placements tier2-section">
         <div class="section-header">
           <span class="section-dot tier2-dot"></span>
-          <h3>Suspected Waste (Yellow)</span>
+          <h3>Suspected Waste (Yellow)</h3>
         </div>
         <ul id="tier2-list" class="placement-list"></ul>
       </section>

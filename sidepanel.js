@@ -2,10 +2,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Views
   const onboardingView = document.getElementById('onboarding-view');
   const dashboardView = document.getElementById('dashboard-view');
+  const licenseView = document.getElementById('license-view');
   const getStartedBtn = document.getElementById('get-started-btn');
   
+  // License elements
+  const licenseInput = document.getElementById('license-key');
+  const validateBtn = document.getElementById('validate-license-btn');
+  const licenseStatus = document.getElementById('license-status');
+  const licenseInfo = document.getElementById('license-info');
+  
   // Dashboard elements
-  const statusEl = document.getElementById('status');
   const scanBtn = document.getElementById('scan-btn');
   const excludeBtn = document.getElementById('exclude-btn');
   const saveBtn = document.getElementById('save-btn');
@@ -23,33 +29,99 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Toast
   const toast = document.getElementById('toast');
-  const toastMessage = document.getElementById('toast-message');
   
   // State
   let scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 } };
-  let suspectedEnabled = true;
+  let currentLicense = null;
   
-  // Check previous scans
-  chrome.storage.local.get(['lastScanTime', 'lastResults'], (result) => {
-    if (result.lastScanTime) {
-      showDashboard();
-      if (result.lastResults) {
-        scanResults = result.lastResults;
-        updateDisplay();
+  // Check license on startup
+  checkLicenseStatus();
+  
+  function checkLicenseStatus() {
+    chrome.runtime.sendMessage({ action: 'getLicenseStatus' }, (response) => {
+      if (response && response.valid) {
+        currentLicense = response;
+        showDashboard();
+        updateLicenseInfo();
+        loadPreviousScan();
+      } else {
+        showLicenseView();
       }
-    } else {
-      showOnboarding();
-    }
-  });
+    });
+  }
   
-  function showOnboarding() {
-    onboardingView.classList.remove('hidden');
+  function showLicenseView() {
+    licenseView.classList.remove('hidden');
+    onboardingView.classList.add('hidden');
     dashboardView.classList.add('hidden');
   }
   
   function showDashboard() {
+    licenseView.classList.add('hidden');
     onboardingView.classList.add('hidden');
     dashboardView.classList.remove('hidden');
+  }
+  
+  function showOnboarding() {
+    licenseView.classList.add('hidden');
+    onboardingView.classList.remove('hidden');
+    dashboardView.classList.add('hidden');
+  }
+  
+  // License validation
+  validateBtn.addEventListener('click', () => {
+    const key = licenseInput.value.trim();
+    if (!key) {
+      showLicenseError('Please enter a license key');
+      return;
+    }
+    
+    validateBtn.disabled = true;
+    validateBtn.textContent = 'Validating...';
+    licenseStatus.textContent = '';
+    
+    chrome.runtime.sendMessage({ action: 'validateLicense', key }, (response) => {
+      validateBtn.disabled = false;
+      validateBtn.textContent = 'Activate';
+      
+      if (response.valid) {
+        currentLicense = response;
+        showLicenseSuccess(response);
+        setTimeout(() => {
+          showDashboard();
+          updateLicenseInfo();
+        }, 1500);
+      } else {
+        showLicenseError(response.error || 'Invalid license key');
+      }
+    });
+  });
+  
+  function showLicenseError(message) {
+    licenseStatus.innerHTML = `<span style="color: #dc2626;">❌ ${message}</span>`;
+  }
+  
+  function showLicenseSuccess(response) {
+    licenseStatus.innerHTML = `<span style="color: #16a34a;">✓ License activated! Uses: ${response.uses}/${response.maxUses}</span>`;
+  }
+  
+  function updateLicenseInfo() {
+    if (!currentLicense) return;
+    
+    licenseInfo.innerHTML = `
+      <div style="
+        background: #e6f4ea;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <span>✓ Licensed</span>
+        <span style="color: #5f6368;">Uses: ${currentLicense.uses || '?'}/${currentLicense.maxUses || '?'}</span>
+      </div>
+    `;
   }
   
   // Get Started
@@ -61,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function checkGoogleAdsTab() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const url = tabs[0]?.url || '';
+      const statusEl = document.getElementById('status');
       if (url.includes('ads.google.com')) {
         statusEl.textContent = 'Ready to scan';
         statusEl.classList.add('ready');
@@ -71,52 +144,72 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Toggle suspected highlighting
+  // Load previous scan
+  function loadPreviousScan() {
+    chrome.storage.local.get(['lastScanTime', 'lastResults'], (result) => {
+      if (result.lastResults) {
+        scanResults = result.lastResults;
+        updateDisplay();
+        updateButtonStates();
+      }
+    });
+  }
+  
+  // Toggle suspected
   toggleSuspected.addEventListener('change', (e) => {
-    suspectedEnabled = e.target.checked;
+    const enabled = e.target.checked;
+    document.getElementById('tier2-section').classList.toggle('hidden', !enabled);
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: 'toggleSuspected',
-          enabled: suspectedEnabled
+          enabled
         });
       }
     });
-    
-    // Toggle visibility of Tier 2 section
-    document.getElementById('tier2-section').classList.toggle('hidden', !suspectedEnabled);
   });
   
-  // Scan button
+  // Scan
   scanBtn.addEventListener('click', () => {
     const btnText = scanBtn.querySelector('.btn-text');
     const spinner = scanBtn.querySelector('.spinner');
+    const statusEl = document.getElementById('status');
     
     btnText.textContent = 'Scanning...';
     spinner.classList.remove('hidden');
     scanBtn.disabled = true;
-    statusEl.textContent = 'Scanning placements...';
+    statusEl.textContent = 'Scanning...';
     statusEl.className = 'status';
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]?.id) return;
       
       chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (response) => {
-        // Reset button
         btnText.textContent = 'Scan Placements';
         spinner.classList.add('hidden');
         scanBtn.disabled = false;
         
-        if (chrome.runtime.lastError || !response?.success) {
-          statusEl.textContent = 'Error: Refresh page and try again';
+        if (chrome.runtime.lastError) {
+          statusEl.textContent = 'Error: Refresh page';
+          statusEl.classList.add('error');
+          return;
+        }
+        
+        if (response.needsLicense) {
+          statusEl.textContent = 'License required';
+          statusEl.classList.add('error');
+          showLicenseView();
+          return;
+        }
+        
+        if (!response.success) {
+          statusEl.textContent = response.error || 'Scan failed';
           statusEl.classList.add('error');
           return;
         }
         
         scanResults = response;
-        
-        // Save results
         chrome.storage.local.set({
           lastScanTime: Date.now(),
           lastResults: scanResults
@@ -125,67 +218,56 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplay();
         updateButtonStates();
         
-        statusEl.textContent = `Found ${response.counts.tier1} confirmed, ${response.counts.tier2} suspected`;
+        const total = (response.counts?.tier1 || 0) + (response.counts?.tier2 || 0);
+        statusEl.textContent = `Found ${total} placements`;
         statusEl.classList.add('success');
         
-        showToast(`Scan complete! Found ${response.counts.tier1 + response.counts.tier2} placements.`);
+        showToast(`Found ${response.counts?.tier1 || 0} confirmed, ${response.counts?.tier2 || 0} suspected`);
       });
     });
   });
   
-  // Exclude button
+  // Exclude
   excludeBtn.addEventListener('click', () => {
-    const totalFound = scanResults.counts?.tier1 + (suspectedEnabled ? scanResults.counts?.tier2 : 0);
-    if (totalFound === 0) return;
+    const total = scanResults.counts?.tier1 + (toggleSuspected.checked ? scanResults.counts?.tier2 : 0);
+    if (total === 0) return;
     
     excludeBtn.textContent = 'Excluding...';
     excludeBtn.disabled = true;
-    statusEl.textContent = 'Excluding placements...';
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]?.id) return;
       
       chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, (response) => {
-        if (chrome.runtime.lastError || !response?.success) {
-          statusEl.textContent = 'Exclusion failed';
-          statusEl.classList.add('error');
+        if (response?.success) {
+          excludeBtn.textContent = `Excluded ${response.excludedCount} ✓`;
+          showToast(`Excluded ${response.excludedCount} placements`);
+        } else {
           excludeBtn.textContent = 'Exclude All';
           excludeBtn.disabled = false;
-          return;
         }
-        
-        statusEl.textContent = `Excluded ${response.excludedCount} placements`;
-        statusEl.classList.add('success');
-        excludeBtn.textContent = 'Excluded ✓';
-        
-        showToast(`Success! Excluded ${response.excludedCount} placements.`);
       });
     });
   });
   
   // Save report
   saveBtn.addEventListener('click', () => {
-    const totalPlacements = [...scanResults.tier1, ...scanResults.tier2];
-    if (totalPlacements.length === 0) return;
-    
     const csv = generateCSV(scanResults);
-    const filename = `pmax-sentry-report-${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `pmax-sentry-${new Date().toISOString().split('T')[0]}.csv`;
     downloadCSV(csv, filename);
-    
-    showToast('Report saved to Downloads!');
+    showToast('Report saved!');
   });
   
   function updateDisplay() {
-    // Update counters
     tier1CountEl.textContent = scanResults.counts?.tier1 || 0;
     tier2CountEl.textContent = scanResults.counts?.tier2 || 0;
     tier1SpendEl.textContent = `£${(scanResults.totalSpend?.tier1 || 0).toFixed(2)}`;
     tier2SpendEl.textContent = `£${(scanResults.totalSpend?.tier2 || 0).toFixed(2)}`;
     
-    // Update Tier 1 list
+    // Tier 1 list
     tier1List.innerHTML = '';
-    if (scanResults.tier1?.length === 0) {
-      tier1List.innerHTML = '<li class="no-results">No confirmed waste found</li>';
+    if (!scanResults.tier1?.length) {
+      tier1List.innerHTML = '<li class="no-results">No confirmed waste</li>';
     } else {
       scanResults.tier1.forEach((p, i) => {
         const li = document.createElement('li');
@@ -199,10 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     
-    // Update Tier 2 list
+    // Tier 2 list
     tier2List.innerHTML = '';
-    if (scanResults.tier2?.length === 0) {
-      tier2List.innerHTML = '<li class="no-results">No suspected waste found</li>';
+    if (!scanResults.tier2?.length) {
+      tier2List.innerHTML = '<li class="no-results">No suspected waste</li>';
     } else {
       scanResults.tier2.forEach((p, i) => {
         const li = document.createElement('li');
@@ -219,25 +301,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function updateButtonStates() {
-    const total = (scanResults.counts?.tier1 || 0) + (suspectedEnabled ? (scanResults.counts?.tier2 || 0) : 0);
+    const total = (scanResults.counts?.tier1 || 0) + (toggleSuspected.checked ? (scanResults.counts?.tier2 || 0) : 0);
     excludeBtn.disabled = total === 0;
     saveBtn.disabled = total === 0;
   }
   
   function generateCSV(data) {
-    const lines = ['Tier,Channel,Spend (£),Keyword/Type'];
-    
-    data.tier1.forEach(p => {
-      lines.push(`Confirmed,${p.channel},${p.spend.toFixed(2)},Tier 1`);
-    });
-    
-    data.tier2.forEach(p => {
-      lines.push(`Suspected,${p.channel},${p.spend.toFixed(2)},${p.keyword || 'Tier 2'}`);
-    });
-    
-    lines.push(`\nTOTAL,Confirmed Waste,£${data.totalSpend?.tier1.toFixed(2) || 0}`);
-    lines.push(`TOTAL,Suspected Waste,£${data.totalSpend?.tier2.toFixed(2) || 0}`);
-    
+    const lines = ['Tier,Channel,Spend,Keyword'];
+    data.tier1?.forEach(p => lines.push(`Confirmed,${p.channel},${p.spend.toFixed(2)},Tier 1`));
+    data.tier2?.forEach(p => lines.push(`Suspected,${p.channel},${p.spend.toFixed(2)},${p.keyword || 'Tier 2'}`));
     return lines.join('\n');
   }
   
@@ -254,10 +326,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function showToast(message) {
+    const toastMessage = document.getElementById('toast-message');
     toastMessage.textContent = message;
     toast.classList.remove('hidden');
     toast.classList.add('show');
-    
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => toast.classList.add('hidden'), 300);
