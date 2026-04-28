@@ -1,67 +1,66 @@
-// PMax Sentry - Content Script (Production)
-// Optimized scanning with O(1) lookups and partial matching
+// PMax Sentry - Content Script v2.0
+// Dual-Tier Detection with Set-based O(1) lookups
 
 (function() {
   'use strict';
   
-  // Safe mode: Only run on placements page
+  // Safe mode check
   const isSafeMode = () => {
     return window.location.href.includes('cm/placements') || 
            window.location.href.includes('placements');
   };
   
-  if (!isSafeMode()) {
-    return;
-  }
+  if (!isSafeMode()) return;
   
-  // Logger utility
+  // Logger
   const Logger = {
     log: (...args) => console.log('[PMax Sentry]', ...args),
     error: (...args) => console.error('[PMax Sentry]', ...args)
   };
   
   // State
-  let foundPlacements = [];
-  let suspectedPlacements = [];
-  let totalWastedSpend = 0;
+  let tier1Placements = [];
+  let tier2Placements = [];
+  let totalWastedSpend = { tier1: 0, tier2: 0 };
   let observer = null;
   let badgeInjected = false;
+  let highlightSuspected = true; // Toggle state
   
-  // Optimized data structures
-  let junkSet = new Set();
-  let suspectedKeywords = [];
+  // Optimized data structures (loaded from background)
+  let channelSet = new Set();
+  let suspectedKeywords = new Set();
   let dataLoaded = false;
   
-  // Colors
+  // Colors for dual-tier
   const COLORS = {
-    confirmed: '#fee2e2',  // Red - in master list
-    suspected: '#fef3c7',  // Yellow - partial match
-    border: '#ea4335'
+    tier1: { bg: '#fee2e2', border: '#dc2626' },      // Red - confirmed
+    tier2: { bg: '#fef3c7', border: '#f59e0b' },       // Yellow - suspected
+    badge: 'rgba(26, 115, 232, 0.9)'
   };
   
-  // Initialize data
+  // Initialize data from storage
   async function initializeData() {
     try {
-      const result = await chrome.storage.local.get(['junkSet', 'suspectedKeywords']);
+      const result = await chrome.storage.local.get(['channelSet', 'keywordSet']);
       
-      if (result.junkSet) {
-        junkSet = new Set(result.junkSet);
+      if (result.channelSet) {
+        channelSet = new Set(result.channelSet);
       }
       
-      if (result.suspectedKeywords) {
-        suspectedKeywords = result.suspectedKeywords.map(k => k.toLowerCase());
+      if (result.keywordSet) {
+        suspectedKeywords = new Set(result.keywordSet);
       }
       
       dataLoaded = true;
-      Logger.log(`Loaded ${junkSet.size} channels, ${suspectedKeywords.length} suspected keywords`);
+      Logger.log(`Loaded ${channelSet.size} channels, ${suspectedKeywords.size} suspected keywords`);
     } catch (error) {
-      Logger.error('Failed to initialize data:', error);
+      Logger.error('Failed to initialize:', error);
     }
   }
   
-  // Inject Sentry Active badge
+  // Inject badge
   function injectBadge() {
-    if (badgeInjected || document.getElementById('pmax-sentry-badge')) return;
+    if (badgeInjected) return;
     
     const badge = document.createElement('div');
     badge.id = 'pmax-sentry-badge';
@@ -70,22 +69,28 @@
         position: fixed;
         top: 12px;
         right: 12px;
-        background: rgba(26, 115, 232, 0.9);
+        background: ${COLORS.badge};
         color: white;
-        padding: 6px 12px;
-        border-radius: 4px;
+        padding: 8px 14px;
+        border-radius: 6px;
         font-family: Roboto, sans-serif;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         z-index: 9999;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         backdrop-filter: blur(4px);
       ">
-        <span style="font-size: 10px;">🛡️</span>
+        <span>🛡️</span>
         <span>Sentry Active</span>
+        <span id="sentry-count" style="
+          background: rgba(255,255,255,0.2);
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+        ">0 found</span>
       </div>
     `;
     
@@ -93,96 +98,64 @@
     badgeInjected = true;
   }
   
-  // Optimized channel classification
+  // Update badge counter
+  function updateBadgeCounter() {
+    const badge = document.getElementById('sentry-count');
+    if (badge) {
+      const total = tier1Placements.length + (highlightSuspected ? tier2Placements.length : 0);
+      badge.textContent = `${total} found`;
+    }
+  }
+  
+  // Dual-tier classification with O(1) Set lookup
   function classifyChannel(channelName) {
-    if (!channelName) return { type: 'none', keyword: null };
+    if (!channelName || !dataLoaded) {
+      return { tier: 'none', keyword: null };
+    }
     
     const normalized = channelName.toLowerCase().trim();
     
-    // O(1) exact match check
-    if (junkSet.has(normalized)) {
-      return { type: 'confirmed', keyword: null };
+    // Tier 1: O(1) exact match
+    if (channelSet.has(normalized)) {
+      return { tier: 'tier1', keyword: null };
     }
     
-    // Partial match for suspected keywords
-    for (const keyword of suspectedKeywords) {
-      if (normalized.includes(keyword)) {
-        return { type: 'suspected', keyword };
+    // Tier 2: Partial keyword match (only if enabled)
+    if (highlightSuspected) {
+      for (const keyword of suspectedKeywords) {
+        if (normalized.includes(keyword)) {
+          return { tier: 'tier2', keyword };
+        }
       }
     }
     
-    return { type: 'none', keyword: null };
+    return { tier: 'none', keyword: null };
   }
   
-  // Highlight row based on classification
+  // Highlight row based on tier
   function highlightRow(row, classification) {
-    if (classification.type === 'confirmed') {
-      row.style.backgroundColor = COLORS.confirmed;
-      row.style.borderLeft = `4px solid ${COLORS.border}`;
-      row.dataset.sentryStatus = 'confirmed';
-    } else if (classification.type === 'suspected') {
-      row.style.backgroundColor = COLORS.suspected;
-      row.style.borderLeft = '4px solid #f59e0b'; // Amber border
-      row.dataset.sentryStatus = 'suspected';
-      row.title = `Suspected: contains "${classification.keyword}"`;
+    if (classification.tier === 'none') return;
+    
+    const colors = classification.tier === 'tier1' ? COLORS.tier1 : COLORS.tier2;
+    
+    row.style.backgroundColor = colors.bg;
+    row.style.borderLeft = `4px solid ${colors.border}`;
+    row.style.transition = 'all 0.2s ease';
+    row.dataset.sentryTier = classification.tier;
+    
+    if (classification.keyword) {
+      row.title = `Suspected: "${classification.keyword}"`;
     }
-    
-    row.style.transition = 'background-color 0.3s ease';
   }
   
-  // Initialize mutation observer
-  function initMutationObserver() {
-    if (observer) return;
-    
-    observer = new MutationObserver((mutations) => {
-      const hasTableChanges = mutations.some(mutation => {
-        return Array.from(mutation.addedNodes).some(node => {
-          return node.nodeType === 1 && 
-                 (node.tagName === 'TABLE' || 
-                  node.querySelector?.('table') ||
-                  node.textContent?.includes('Placement'));
-        });
-      });
-      
-      if (hasTableChanges && isSafeMode()) {
-        reapplyHighlights();
-      }
-    });
-    
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-  
-  // Reapply highlights after SPA navigation
-  async function reapplyHighlights() {
-    if (!dataLoaded) await initializeData();
-    
-    const tableRows = document.querySelectorAll('table tr, [role="row"]');
-    
-    tableRows.forEach(row => {
-      const rowText = row.textContent || '';
-      const classification = classifyChannel(rowText);
-      
-      if (classification.type !== 'none') {
-        highlightRow(row, classification);
-      }
-    });
-  }
-  
-  // Extract spend value
-  function extractSpendFromRow(row) {
-    const cellTexts = Array.from(row.querySelectorAll('td, [role="cell"]'))
-      .map(cell => cell.textContent || '');
-    
-    for (const text of cellTexts) {
-      const match = text.match(/[£$€]\s*([\d,]+\.?\d*)/);
+  // Extract spend from row
+  function extractSpend(row) {
+    const cells = row.querySelectorAll('td, [role="cell"]');
+    for (const cell of cells) {
+      const match = cell.textContent?.match(/[£$€]\s*([\d,]+\.?\d*)/);
       if (match) {
         const amount = parseFloat(match[1].replace(/,/g, ''));
-        if (!isNaN(amount) && amount > 0) {
-          return amount;
-        }
+        if (!isNaN(amount) && amount > 0) return amount;
       }
     }
     return 0;
@@ -193,74 +166,72 @@
     const cells = row.querySelectorAll('td, [role="cell"]');
     for (const cell of cells) {
       const text = cell.textContent?.trim();
-      if (text && (text.includes('youtube.com') || text.includes('youtu.be') || text.length > 3)) {
-        return text;
-      }
+      if (text && text.length > 2) return text;
     }
-    return row.textContent?.trim() || '';
+    return row.textContent?.trim().substring(0, 100) || '';
   }
   
   // Main scan function
-  async function findPlacements() {
-    Logger.log('Starting optimized placement scan...');
+  async function scanPlacements() {
+    Logger.log('Starting dual-tier scan...');
     
     if (!dataLoaded) await initializeData();
     
-    foundPlacements = [];
-    suspectedPlacements = [];
-    totalWastedSpend = 0;
+    tier1Placements = [];
+    tier2Placements = [];
+    totalWastedSpend = { tier1: 0, tier2: 0 };
     
-    const tableRows = document.querySelectorAll('table tr, [role="row"]');
+    const rows = document.querySelectorAll('table tr, [role="row"]');
     
-    tableRows.forEach(row => {
+    rows.forEach(row => {
       const channelName = extractChannelName(row);
       const classification = classifyChannel(channelName);
       
-      if (classification.type !== 'none') {
-        const spend = extractSpendFromRow(row);
+      if (classification.tier !== 'none') {
+        const spend = extractSpend(row);
         const checkbox = row.querySelector('input[type="checkbox"], [role="checkbox"]');
         
         const placement = {
-          channel: channelName.substring(0, 50), // Truncate long names
+          channel: channelName.substring(0, 60),
           spend,
           rowElement: row,
           checkboxElement: checkbox,
           classification
         };
         
-        if (classification.type === 'confirmed') {
-          foundPlacements.push(placement);
-        } else {
-          suspectedPlacements.push(placement);
+        if (classification.tier === 'tier1') {
+          tier1Placements.push(placement);
+          totalWastedSpend.tier1 += spend;
+        } else if (classification.tier === 'tier2') {
+          tier2Placements.push(placement);
+          totalWastedSpend.tier2 += spend;
         }
         
         highlightRow(row, classification);
       }
     });
     
-    totalWastedSpend = foundPlacements.reduce((sum, p) => sum + p.spend, 0);
+    updateBadgeCounter();
     
-    Logger.log(`Scan complete: ${foundPlacements.length} confirmed, ${suspectedPlacements.length} suspected`);
+    Logger.log(`Scan complete: ${tier1Placements.length} Tier 1, ${tier2Placements.length} Tier 2`);
     
     return {
-      placements: foundPlacements.map(p => ({
-        channel: p.channel,
-        spend: p.spend,
-        type: p.classification.type
-      })),
-      suspected: suspectedPlacements.map(p => ({
-        channel: p.channel,
-        spend: p.spend,
-        keyword: p.classification.keyword
-      })),
+      tier1: tier1Placements.map(p => ({ channel: p.channel, spend: p.spend })),
+      tier2: tier2Placements.map(p => ({ channel: p.channel, spend: p.spend, keyword: p.classification.keyword })),
       totalSpend: totalWastedSpend,
-      totalSuspectedSpend: suspectedPlacements.reduce((sum, p) => sum + p.spend, 0)
+      counts: {
+        tier1: tier1Placements.length,
+        tier2: tier2Placements.length
+      }
     };
   }
   
   // Perform exclusion
   async function performExclusion() {
-    const allPlacements = [...foundPlacements, ...suspectedPlacements];
+    const allPlacements = [...tier1Placements];
+    if (highlightSuspected) {
+      allPlacements.push(...tier2Placements);
+    }
     
     if (allPlacements.length === 0) {
       return { success: true, excludedCount: 0 };
@@ -268,73 +239,84 @@
     
     let excludedCount = 0;
     
-    // Exclude confirmed first
-    for (const placement of foundPlacements) {
+    // Exclude Tier 1 first
+    for (const p of tier1Placements) {
       try {
-        if (placement.checkboxElement) {
-          placement.checkboxElement.click();
+        if (p.checkboxElement) {
+          p.checkboxElement.click();
           excludedCount++;
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(r => setTimeout(r, 100));
         }
-      } catch (e) {
-        Logger.error('Error excluding', placement.channel, e);
+      } catch (e) {}
+    }
+    
+    // Then Tier 2 if enabled
+    if (highlightSuspected) {
+      for (const p of tier2Placements) {
+        try {
+          if (p.checkboxElement) {
+            p.checkboxElement.click();
+            excludedCount++;
+            await new Promise(r => setTimeout(r, 100));
+          }
+        } catch (e) {}
       }
     }
     
-    // Then suspected
-    for (const placement of suspectedPlacements) {
-      try {
-        if (placement.checkboxElement) {
-          placement.checkboxElement.click();
-          excludedCount++;
-          await new Promise(resolve => setTimeout(resolve, 150));
-        }
-      } catch (e) {
-        Logger.error('Error excluding suspected', placement.channel, e);
-      }
-    }
-    
-    // Trigger edit/exclude flow
+    // Trigger exclusion flow
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const editBtn = findButtonByText('Edit');
+      await new Promise(r => setTimeout(r, 300));
+      const editBtn = [...document.querySelectorAll('button, [role="button"]')]
+        .find(b => b.textContent.toLowerCase().includes('edit'));
       if (editBtn) {
         editBtn.click();
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(r => setTimeout(r, 400));
         
-        const excludeBtn = findButtonByText('Exclude');
+        const excludeBtn = [...document.querySelectorAll('button, [role="button"]')]
+          .find(b => b.textContent.toLowerCase().includes('exclude'));
         if (excludeBtn) excludeBtn.click();
       }
-    } catch (e) {
-      Logger.error('Error in Edit/Exclude flow:', e);
-    }
+    } catch (e) {}
     
     return { success: true, excludedCount };
   }
   
-  // Find button by text
-  function findButtonByText(text) {
-    const buttons = document.querySelectorAll('button, [role="button"]');
-    for (const btn of buttons) {
-      if (btn.textContent.toLowerCase().includes(text.toLowerCase())) {
-        return btn;
+  // Reapply highlights
+  async function reapplyHighlights() {
+    if (!dataLoaded) await initializeData();
+    
+    const rows = document.querySelectorAll('table tr, [role="row"]');
+    rows.forEach(row => {
+      const name = extractChannelName(row);
+      const classification = classifyChannel(name);
+      if (classification.tier !== 'none') {
+        highlightRow(row, classification);
       }
-    }
-    return null;
+    });
+    
+    updateBadgeCounter();
+  }
+  
+  // Mutation observer
+  function initObserver() {
+    if (observer) return;
+    
+    observer = new MutationObserver(() => {
+      if (isSafeMode()) reapplyHighlights();
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
   }
   
   // Message listeners
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    
     if (request.action === 'scanPlacements') {
-      findPlacements().then(result => {
-        chrome.storage.local.set({ 
-          wastedSpend: result.totalSpend,
-          lastScan: Date.now()
-        });
+      scanPlacements().then(result => {
+        chrome.storage.local.set({ lastScan: Date.now() });
         sendResponse({ success: true, ...result });
-      }).catch(error => {
-        Logger.error('Scan error:', error);
-        sendResponse({ success: false, error: error.message });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
       return true;
     }
@@ -342,18 +324,25 @@
     if (request.action === 'performExclusion') {
       performExclusion().then(result => {
         sendResponse(result);
-      }).catch(error => {
-        Logger.error('Exclusion error:', error);
-        sendResponse({ success: false, error: error.message });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
+      return true;
+    }
+    
+    if (request.action === 'toggleSuspected') {
+      highlightSuspected = request.enabled;
+      reapplyHighlights();
+      sendResponse({ success: true, enabled: highlightSuspected });
       return true;
     }
     
     if (request.action === 'getStats') {
       sendResponse({
-        confirmed: foundPlacements.length,
-        suspected: suspectedPlacements.length,
-        totalSpend: totalWastedSpend
+        tier1: tier1Placements.length,
+        tier2: tier2Placements.length,
+        spend: totalWastedSpend,
+        suspectedEnabled: highlightSuspected
       });
       return true;
     }
@@ -362,7 +351,7 @@
   // Initialize
   initializeData().then(() => {
     injectBadge();
-    initMutationObserver();
-    Logger.log('Content script loaded with production optimizations');
+    initObserver();
+    Logger.log('PMax Sentry v2.0 loaded with dual-tier detection');
   });
 })();

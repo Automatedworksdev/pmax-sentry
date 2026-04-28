@@ -6,35 +6,40 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Dashboard elements
   const statusEl = document.getElementById('status');
-  const wasteDisplayEl = document.getElementById('waste-display');
   const scanBtn = document.getElementById('scan-btn');
   const excludeBtn = document.getElementById('exclude-btn');
   const saveBtn = document.getElementById('save-btn');
-  const placementList = document.getElementById('placement-list');
-  const lastScanTimeEl = document.getElementById('last-scan-time');
+  const toggleSuspected = document.getElementById('toggle-suspected');
+  
+  // Counters
+  const tier1CountEl = document.getElementById('tier1-count');
+  const tier2CountEl = document.getElementById('tier2-count');
+  const tier1SpendEl = document.getElementById('tier1-spend');
+  const tier2SpendEl = document.getElementById('tier2-spend');
+  
+  // Lists
+  const tier1List = document.getElementById('tier1-list');
+  const tier2List = document.getElementById('tier2-list');
+  
+  // Toast
   const toast = document.getElementById('toast');
   const toastMessage = document.getElementById('toast-message');
   
   // State
-  let currentPlacements = [];
-  let currentTotalSpend = 0;
+  let scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 } };
+  let suspectedEnabled = true;
   
-  // Check if user has previous scan data
-  chrome.storage.local.get(['lastScanTime', 'wastedSpend', 'lastPlacements'], (result) => {
+  // Check previous scans
+  chrome.storage.local.get(['lastScanTime', 'lastResults'], (result) => {
     if (result.lastScanTime) {
-      // User has scanned before, show dashboard
       showDashboard();
-      loadPreviousData(result);
+      if (result.lastResults) {
+        scanResults = result.lastResults;
+        updateDisplay();
+      }
     } else {
-      // First time user, show onboarding
       showOnboarding();
     }
-  });
-  
-  // Get Started button
-  getStartedBtn.addEventListener('click', () => {
-    showDashboard();
-    checkGoogleAdsTab();
   });
   
   function showOnboarding() {
@@ -47,21 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboardView.classList.remove('hidden');
   }
   
-  function loadPreviousData(result) {
-    if (result.wastedSpend) {
-      wasteDisplayEl.textContent = `£${result.wastedSpend.toFixed(2)}`;
-      currentTotalSpend = result.wastedSpend;
-    }
-    if (result.lastPlacements) {
-      currentPlacements = result.lastPlacements;
-      displayPlacements(currentPlacements);
-      updateButtonStates();
-    }
-    if (result.lastScanTime) {
-      const scanDate = new Date(result.lastScanTime);
-      lastScanTimeEl.textContent = `Last scanned: ${scanDate.toLocaleString()}`;
-    }
-  }
+  // Get Started
+  getStartedBtn.addEventListener('click', () => {
+    showDashboard();
+    checkGoogleAdsTab();
+  });
   
   function checkGoogleAdsTab() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -76,153 +71,174 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Scan button handler
+  // Toggle suspected highlighting
+  toggleSuspected.addEventListener('change', (e) => {
+    suspectedEnabled = e.target.checked;
+    
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: 'toggleSuspected',
+          enabled: suspectedEnabled
+        });
+      }
+    });
+    
+    // Toggle visibility of Tier 2 section
+    document.getElementById('tier2-section').classList.toggle('hidden', !suspectedEnabled);
+  });
+  
+  // Scan button
   scanBtn.addEventListener('click', () => {
     const btnText = scanBtn.querySelector('.btn-text');
     const spinner = scanBtn.querySelector('.spinner');
     
-    // Show loading state
     btnText.textContent = 'Scanning...';
     spinner.classList.remove('hidden');
     scanBtn.disabled = true;
     statusEl.textContent = 'Scanning placements...';
-    statusEl.classList.remove('ready', 'warning', 'success', 'error');
+    statusEl.className = 'status';
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (response) => {
-          // Reset button
-          btnText.textContent = 'Scan Placements';
-          spinner.classList.add('hidden');
-          scanBtn.disabled = false;
-          
-          if (chrome.runtime.lastError) {
-            statusEl.textContent = 'Error: Refresh page and try again';
-            statusEl.classList.add('error');
-            return;
-          }
-          
-          if (response?.success) {
-            currentPlacements = response.placements;
-            currentTotalSpend = response.totalSpend;
-            
-            displayPlacements(currentPlacements);
-            updateWastedSpend(currentTotalSpend);
-            saveScanResults(currentPlacements, currentTotalSpend);
-            
-            statusEl.textContent = `Found ${response.placements.length} junk placements`;
-            statusEl.classList.add('success');
-            updateButtonStates();
-            
-            showToast(`Scan complete! Found ${response.placements.length} junk placements.`);
-          } else {
-            statusEl.textContent = 'Scan failed: ' + (response?.error || 'Unknown error');
-            statusEl.classList.add('error');
-          }
+      if (!tabs[0]?.id) return;
+      
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (response) => {
+        // Reset button
+        btnText.textContent = 'Scan Placements';
+        spinner.classList.add('hidden');
+        scanBtn.disabled = false;
+        
+        if (chrome.runtime.lastError || !response?.success) {
+          statusEl.textContent = 'Error: Refresh page and try again';
+          statusEl.classList.add('error');
+          return;
+        }
+        
+        scanResults = response;
+        
+        // Save results
+        chrome.storage.local.set({
+          lastScanTime: Date.now(),
+          lastResults: scanResults
         });
-      }
+        
+        updateDisplay();
+        updateButtonStates();
+        
+        statusEl.textContent = `Found ${response.counts.tier1} confirmed, ${response.counts.tier2} suspected`;
+        statusEl.classList.add('success');
+        
+        showToast(`Scan complete! Found ${response.counts.tier1 + response.counts.tier2} placements.`);
+      });
     });
   });
   
-  // Exclude button handler
+  // Exclude button
   excludeBtn.addEventListener('click', () => {
-    if (currentPlacements.length === 0) return;
+    const totalFound = scanResults.counts?.tier1 + (suspectedEnabled ? scanResults.counts?.tier2 : 0);
+    if (totalFound === 0) return;
     
     excludeBtn.textContent = 'Excluding...';
     excludeBtn.disabled = true;
     statusEl.textContent = 'Excluding placements...';
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, (response) => {
-          if (chrome.runtime.lastError || !response?.success) {
-            statusEl.textContent = 'Exclusion failed';
-            statusEl.classList.add('error');
-            excludeBtn.textContent = 'Exclude All Junk';
-            excludeBtn.disabled = false;
-            return;
-          }
-          
-          statusEl.textContent = `Excluded ${response.excludedCount} placements`;
-          statusEl.classList.add('success');
-          excludeBtn.textContent = 'Excluded ✓';
-          
-          showToast(`Success! Excluded ${response.excludedCount} junk placements.`);
-        });
-      }
+      if (!tabs[0]?.id) return;
+      
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, (response) => {
+        if (chrome.runtime.lastError || !response?.success) {
+          statusEl.textContent = 'Exclusion failed';
+          statusEl.classList.add('error');
+          excludeBtn.textContent = 'Exclude All';
+          excludeBtn.disabled = false;
+          return;
+        }
+        
+        statusEl.textContent = `Excluded ${response.excludedCount} placements`;
+        statusEl.classList.add('success');
+        excludeBtn.textContent = 'Excluded ✓';
+        
+        showToast(`Success! Excluded ${response.excludedCount} placements.`);
+      });
     });
   });
   
-  // Save report button
+  // Save report
   saveBtn.addEventListener('click', () => {
-    if (currentPlacements.length === 0) return;
+    const totalPlacements = [...scanResults.tier1, ...scanResults.tier2];
+    if (totalPlacements.length === 0) return;
     
-    const csvContent = generateCSV(currentPlacements, currentTotalSpend);
+    const csv = generateCSV(scanResults);
     const filename = `pmax-sentry-report-${new Date().toISOString().split('T')[0]}.csv`;
-    downloadCSV(csvContent, filename);
+    downloadCSV(csv, filename);
     
     showToast('Report saved to Downloads!');
   });
   
-  function displayPlacements(placements) {
-    placementList.innerHTML = '';
+  function updateDisplay() {
+    // Update counters
+    tier1CountEl.textContent = scanResults.counts?.tier1 || 0;
+    tier2CountEl.textContent = scanResults.counts?.tier2 || 0;
+    tier1SpendEl.textContent = `£${(scanResults.totalSpend?.tier1 || 0).toFixed(2)}`;
+    tier2SpendEl.textContent = `£${(scanResults.totalSpend?.tier2 || 0).toFixed(2)}`;
     
-    if (placements.length === 0) {
-      placementList.innerHTML = '<li class="no-results">No junk placements found. Great job!</li>';
-      return;
+    // Update Tier 1 list
+    tier1List.innerHTML = '';
+    if (scanResults.tier1?.length === 0) {
+      tier1List.innerHTML = '<li class="no-results">No confirmed waste found</li>';
+    } else {
+      scanResults.tier1.forEach((p, i) => {
+        const li = document.createElement('li');
+        li.className = 'placement-item tier1';
+        li.style.animationDelay = `${i * 0.03}s`;
+        li.innerHTML = `
+          <span class="channel-name">${p.channel}</span>
+          <span class="spend">£${p.spend.toFixed(2)}</span>
+        `;
+        tier1List.appendChild(li);
+      });
     }
     
-    placements.forEach((placement, index) => {
-      const li = document.createElement('li');
-      li.className = 'placement-item';
-      li.style.animationDelay = `${index * 0.05}s`;
-      li.innerHTML = `
-        <span class="channel-name">${placement.channel}</span>
-        <span class="spend">£${placement.spend.toFixed(2)}</span>
-      `;
-      placementList.appendChild(li);
-    });
-  }
-  
-  function updateWastedSpend(amount) {
-    wasteDisplayEl.textContent = `£${amount.toFixed(2)}`;
-  }
-  
-  function saveScanResults(placements, totalSpend) {
-    chrome.storage.local.set({
-      wastedSpend: totalSpend,
-      lastPlacements: placements,
-      lastScanTime: Date.now()
-    });
-    
-    const scanDate = new Date();
-    lastScanTimeEl.textContent = `Last scanned: ${scanDate.toLocaleString()}`;
+    // Update Tier 2 list
+    tier2List.innerHTML = '';
+    if (scanResults.tier2?.length === 0) {
+      tier2List.innerHTML = '<li class="no-results">No suspected waste found</li>';
+    } else {
+      scanResults.tier2.forEach((p, i) => {
+        const li = document.createElement('li');
+        li.className = 'placement-item tier2';
+        li.style.animationDelay = `${i * 0.03}s`;
+        li.innerHTML = `
+          <span class="channel-name">${p.channel}</span>
+          <span class="spend">£${p.spend.toFixed(2)}</span>
+          ${p.keyword ? `<span class="keyword-tag">${p.keyword}</span>` : ''}
+        `;
+        tier2List.appendChild(li);
+      });
+    }
   }
   
   function updateButtonStates() {
-    const hasResults = currentPlacements.length > 0;
-    excludeBtn.disabled = !hasResults;
-    saveBtn.disabled = !hasResults;
+    const total = (scanResults.counts?.tier1 || 0) + (suspectedEnabled ? (scanResults.counts?.tier2 || 0) : 0);
+    excludeBtn.disabled = total === 0;
+    saveBtn.disabled = total === 0;
   }
   
-  function showToast(message) {
-    toastMessage.textContent = message;
-    toast.classList.remove('hidden');
-    toast.classList.add('show');
+  function generateCSV(data) {
+    const lines = ['Tier,Channel,Spend (£),Keyword/Type'];
     
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 300);
-    }, 3000);
-  }
-  
-  function generateCSV(placements, totalSpend) {
-    const headers = 'Channel,Spend (£)\n';
-    const rows = placements.map(p => `${p.channel},${p.spend.toFixed(2)}`).join('\n');
-    const total = `\nTOTAL,${totalSpend.toFixed(2)}`;
-    return headers + rows + total;
+    data.tier1.forEach(p => {
+      lines.push(`Confirmed,${p.channel},${p.spend.toFixed(2)},Tier 1`);
+    });
+    
+    data.tier2.forEach(p => {
+      lines.push(`Suspected,${p.channel},${p.spend.toFixed(2)},${p.keyword || 'Tier 2'}`);
+    });
+    
+    lines.push(`\nTOTAL,Confirmed Waste,£${data.totalSpend?.tier1.toFixed(2) || 0}`);
+    lines.push(`TOTAL,Suspected Waste,£${data.totalSpend?.tier2.toFixed(2) || 0}`);
+    
+    return lines.join('\n');
   }
   
   function downloadCSV(content, filename) {
@@ -235,5 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+  
+  function showToast(message) {
+    toastMessage.textContent = message;
+    toast.classList.remove('hidden');
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.classList.add('hidden'), 300);
+    }, 3000);
   }
 });

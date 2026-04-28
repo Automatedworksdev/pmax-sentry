@@ -11,7 +11,7 @@
     <!-- Onboarding View -->
     <div id="onboarding-view" class="onboarding">
       <h1>Welcome to PMax Sentry</h1>
-      <p class="subtitle">Automatically find and exclude low-quality YouTube placements</p>
+      <p class="subtitle">Dual-tier detection for Google Ads placements</p>
       
       <div class="steps">
         <div class="step">
@@ -25,14 +25,14 @@
           <div class="step-number">2</div>
           <div class="step-content">
             <h3>Scan</h3>
-            <p>Click "Scan Placements" to detect junk channels</p>
+            <p>Detect <strong>confirmed</strong> (red) and <strong>suspected</strong> (yellow) waste</p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
           <div class="step-content">
             <h3>Exclude</h3>
-            <p>Review and exclude low-quality placements</p>
+            <p>Review and exclude with one click</p>
           </div>
         </div>
       </div>
@@ -43,38 +43,75 @@
     <!-- Main Dashboard View -->
     <div id="dashboard-view" class="dashboard-view hidden">
       <header>
-        <h1>PMax Sentry</h1>
-        <div id="status" class="status">Scanning for Google Ads...</div>
-        <div class="last-scan" id="last-scan-time"></div>
+        <h1>PMax Sentry v2.0</h1>
+        <div id="status" class="status">Ready</div>
       </header>
       
-      <section class="dashboard">
-        <div class="waste-card">
-          <h2>Wasted Spend</h2>
-          <div id="waste-display" class="waste-amount">£0.00</div>
+      <!-- Toggle Section -->
+      <section class="toggle-section">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-suspected" checked>
+          <span class="toggle-switch"></span>
+          <span class="toggle-text">Highlight Suspected Content</span>
+        </label>
+        <p class="toggle-hint">Yellow = suspected waste (keyword match)</p>
+      </section>
+      
+      <!-- Dual Counters -->
+      <section class="counters">
+        <div class="counter-card tier1-card">
+          <div class="counter-header">
+            <span class="dot tier1-dot"></span>
+            <span>Confirmed Waste</span>
+          </div>
+          <div class="counter-value" id="tier1-count">0</div>
+          <div class="counter-spend" id="tier1-spend">£0.00</div>
+        </div>
+        
+        <div class="counter-card tier2-card">
+          <div class="counter-header">
+            <span class="dot tier2-dot"></span>
+            <span>Suspected Waste</span>
+          </div>
+          <div class="counter-value" id="tier2-count">0</div>
+          <div class="counter-spend" id="tier2-spend">£0.00</div>
         </div>
       </section>
       
+      <!-- Actions -->
       <section class="actions">
         <button id="scan-btn" class="scan-button">
           <span class="btn-text">Scan Placements</span>
           <span class="spinner hidden"></span>
         </button>
-        <button id="exclude-btn" class="exclude-button" disabled>Exclude All Junk</button>
+        <button id="exclude-btn" class="exclude-button" disabled>Exclude All</button>
         <button id="save-btn" class="save-button" disabled>Save Report</button>
       </section>
       
-      <section class="placements">
-        <h3>Detected Junk Placements</h3>
-        <ul id="placement-list" class="placement-list"></ul>
+      <!-- Tier 1 List -->
+      <section class="placements tier1-section">
+        <div class="section-header">
+          <span class="section-dot tier1-dot"></span>
+          <h3>Confirmed Waste (Red)</h3>
+        </div>
+        <ul id="tier1-list" class="placement-list"></ul>
+      </section>
+      
+      <!-- Tier 2 List -->
+      <section id="tier2-section" class="placements tier2-section">
+        <div class="section-header">
+          <span class="section-dot tier2-dot"></span>
+          <h3>Suspected Waste (Yellow)</span>
+        </div>
+        <ul id="tier2-list" class="placement-list"></ul>
       </section>
       
       <footer>
-        <a href="https://github.com/openclaw/pmax-sentry/issues" target="_blank" class="help-link">Help & Feedback</a>
+        <a href="https://github.com/Automatedworksdev/pmax-sentry" target="_blank" class="help-link">GitHub</a>
       </footer>
     </div>
     
-    <!-- Toast Notification -->
+    <!-- Toast -->
     <div id="toast" class="toast hidden">
       <span id="toast-message"></span>
     </div>
