@@ -11,7 +11,8 @@
   ],
   "host_permissions": [
     "https://ads.google.com/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "file:///*"
   ],
   "action": {
     "default_title": "Click to open PMax Sentry"
@@ -24,7 +25,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://ads.google.com/*"],
+      "matches": [
+        "https://ads.google.com/*",
+        "file:///*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
