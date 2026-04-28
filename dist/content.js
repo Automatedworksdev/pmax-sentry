@@ -11,7 +11,8 @@
     const url = window.location.href.toLowerCase();
     return url.includes('cm/placements') || 
            url.includes('placements') || 
-           url.includes('mock_google_ads');
+           url.includes('mock_google_ads') ||
+           url.includes('mock_test');
   };
   
   if (!isSafeMode()) {
