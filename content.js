@@ -1,5 +1,5 @@
 // PMax Sentry - Content Script (Production)
-// Scans Google Ads UI for junk placements and performs exclusions
+// Optimized scanning with O(1) lookups and partial matching
 
 (function() {
   'use strict';
@@ -14,29 +14,54 @@
     return;
   }
   
-  // Logger utility (dev mode only)
+  // Logger utility
   const Logger = {
-    log: (...args) => {
-      if (typeof DEV_MODE !== 'undefined' && DEV_MODE) {
-        console.log('[PMax Sentry]', ...args);
-      }
-    },
-    error: (...args) => {
-      if (typeof DEV_MODE !== 'undefined' && DEV_MODE) {
-        console.error('[PMax Sentry]', ...args);
-      }
-    }
+    log: (...args) => console.log('[PMax Sentry]', ...args),
+    error: (...args) => console.error('[PMax Sentry]', ...args)
   };
   
-  // Keep track of found placements
+  // State
   let foundPlacements = [];
+  let suspectedPlacements = [];
   let totalWastedSpend = 0;
   let observer = null;
   let badgeInjected = false;
   
+  // Optimized data structures
+  let junkSet = new Set();
+  let suspectedKeywords = [];
+  let dataLoaded = false;
+  
+  // Colors
+  const COLORS = {
+    confirmed: '#fee2e2',  // Red - in master list
+    suspected: '#fef3c7',  // Yellow - partial match
+    border: '#ea4335'
+  };
+  
+  // Initialize data
+  async function initializeData() {
+    try {
+      const result = await chrome.storage.local.get(['junkSet', 'suspectedKeywords']);
+      
+      if (result.junkSet) {
+        junkSet = new Set(result.junkSet);
+      }
+      
+      if (result.suspectedKeywords) {
+        suspectedKeywords = result.suspectedKeywords.map(k => k.toLowerCase());
+      }
+      
+      dataLoaded = true;
+      Logger.log(`Loaded ${junkSet.size} channels, ${suspectedKeywords.length} suspected keywords`);
+    } catch (error) {
+      Logger.error('Failed to initialize data:', error);
+    }
+  }
+  
   // Inject Sentry Active badge
   function injectBadge() {
-    if (badgeInjected) return;
+    if (badgeInjected || document.getElementById('pmax-sentry-badge')) return;
     
     const badge = document.createElement('div');
     badge.id = 'pmax-sentry-badge';
@@ -66,11 +91,46 @@
     
     document.body.appendChild(badge);
     badgeInjected = true;
-    
-    Logger.log('Badge injected');
   }
   
-  // Initialize mutation observer for SPA navigation
+  // Optimized channel classification
+  function classifyChannel(channelName) {
+    if (!channelName) return { type: 'none', keyword: null };
+    
+    const normalized = channelName.toLowerCase().trim();
+    
+    // O(1) exact match check
+    if (junkSet.has(normalized)) {
+      return { type: 'confirmed', keyword: null };
+    }
+    
+    // Partial match for suspected keywords
+    for (const keyword of suspectedKeywords) {
+      if (normalized.includes(keyword)) {
+        return { type: 'suspected', keyword };
+      }
+    }
+    
+    return { type: 'none', keyword: null };
+  }
+  
+  // Highlight row based on classification
+  function highlightRow(row, classification) {
+    if (classification.type === 'confirmed') {
+      row.style.backgroundColor = COLORS.confirmed;
+      row.style.borderLeft = `4px solid ${COLORS.border}`;
+      row.dataset.sentryStatus = 'confirmed';
+    } else if (classification.type === 'suspected') {
+      row.style.backgroundColor = COLORS.suspected;
+      row.style.borderLeft = '4px solid #f59e0b'; // Amber border
+      row.dataset.sentryStatus = 'suspected';
+      row.title = `Suspected: contains "${classification.keyword}"`;
+    }
+    
+    row.style.transition = 'background-color 0.3s ease';
+  }
+  
+  // Initialize mutation observer
   function initMutationObserver() {
     if (observer) return;
     
@@ -97,70 +157,18 @@
   
   // Reapply highlights after SPA navigation
   async function reapplyHighlights() {
-    const { junkList } = await chrome.storage.local.get('junkList');
-    if (!junkList) return;
+    if (!dataLoaded) await initializeData();
     
     const tableRows = document.querySelectorAll('table tr, [role="row"]');
     
     tableRows.forEach(row => {
       const rowText = row.textContent || '';
-      junkList.forEach(channel => {
-        if (rowText.toLowerCase().includes(channel.toLowerCase())) {
-          highlightRow(row);
-        }
-      });
-    });
-  }
-  
-  // Highlight a row
-  function highlightRow(row) {
-    row.style.backgroundColor = '#fee2e2';
-    row.style.borderLeft = '4px solid #ea4335';
-    row.style.transition = 'background-color 0.3s ease';
-  }
-  
-  // Main scan function
-  async function findPlacements() {
-    Logger.log('Starting placement scan...');
-    
-    foundPlacements = [];
-    totalWastedSpend = 0;
-    
-    const { junkList } = await chrome.storage.local.get('junkList');
-    if (!junkList || junkList.length === 0) {
-      return { placements: [], totalSpend: 0 };
-    }
-    
-    const tableRows = document.querySelectorAll('table tr, [role="row"]');
-    
-    tableRows.forEach(row => {
-      const rowText = row.textContent || '';
+      const classification = classifyChannel(rowText);
       
-      junkList.forEach(channel => {
-        if (rowText.toLowerCase().includes(channel.toLowerCase())) {
-          const checkbox = row.querySelector('input[type="checkbox"], [role="checkbox"]');
-          
-          foundPlacements.push({
-            channel: channel,
-            spend: extractSpendFromRow(row),
-            rowElement: row,
-            checkboxElement: checkbox
-          });
-          
-          highlightRow(row);
-        }
-      });
+      if (classification.type !== 'none') {
+        highlightRow(row, classification);
+      }
     });
-    
-    totalWastedSpend = foundPlacements.reduce((sum, p) => sum + p.spend, 0);
-    
-    return {
-      placements: foundPlacements.map(p => ({
-        channel: p.channel,
-        spend: p.spend
-      })),
-      totalSpend: totalWastedSpend
-    };
   }
   
   // Extract spend value
@@ -180,27 +188,115 @@
     return 0;
   }
   
+  // Extract channel name
+  function extractChannelName(row) {
+    const cells = row.querySelectorAll('td, [role="cell"]');
+    for (const cell of cells) {
+      const text = cell.textContent?.trim();
+      if (text && (text.includes('youtube.com') || text.includes('youtu.be') || text.length > 3)) {
+        return text;
+      }
+    }
+    return row.textContent?.trim() || '';
+  }
+  
+  // Main scan function
+  async function findPlacements() {
+    Logger.log('Starting optimized placement scan...');
+    
+    if (!dataLoaded) await initializeData();
+    
+    foundPlacements = [];
+    suspectedPlacements = [];
+    totalWastedSpend = 0;
+    
+    const tableRows = document.querySelectorAll('table tr, [role="row"]');
+    
+    tableRows.forEach(row => {
+      const channelName = extractChannelName(row);
+      const classification = classifyChannel(channelName);
+      
+      if (classification.type !== 'none') {
+        const spend = extractSpendFromRow(row);
+        const checkbox = row.querySelector('input[type="checkbox"], [role="checkbox"]');
+        
+        const placement = {
+          channel: channelName.substring(0, 50), // Truncate long names
+          spend,
+          rowElement: row,
+          checkboxElement: checkbox,
+          classification
+        };
+        
+        if (classification.type === 'confirmed') {
+          foundPlacements.push(placement);
+        } else {
+          suspectedPlacements.push(placement);
+        }
+        
+        highlightRow(row, classification);
+      }
+    });
+    
+    totalWastedSpend = foundPlacements.reduce((sum, p) => sum + p.spend, 0);
+    
+    Logger.log(`Scan complete: ${foundPlacements.length} confirmed, ${suspectedPlacements.length} suspected`);
+    
+    return {
+      placements: foundPlacements.map(p => ({
+        channel: p.channel,
+        spend: p.spend,
+        type: p.classification.type
+      })),
+      suspected: suspectedPlacements.map(p => ({
+        channel: p.channel,
+        spend: p.spend,
+        keyword: p.classification.keyword
+      })),
+      totalSpend: totalWastedSpend,
+      totalSuspectedSpend: suspectedPlacements.reduce((sum, p) => sum + p.spend, 0)
+    };
+  }
+  
   // Perform exclusion
   async function performExclusion() {
-    if (foundPlacements.length === 0) {
+    const allPlacements = [...foundPlacements, ...suspectedPlacements];
+    
+    if (allPlacements.length === 0) {
       return { success: true, excludedCount: 0 };
     }
     
     let excludedCount = 0;
     
+    // Exclude confirmed first
     for (const placement of foundPlacements) {
       try {
         if (placement.checkboxElement) {
           placement.checkboxElement.click();
           excludedCount++;
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 150));
         }
       } catch (e) {
         Logger.error('Error excluding', placement.channel, e);
       }
     }
     
+    // Then suspected
+    for (const placement of suspectedPlacements) {
+      try {
+        if (placement.checkboxElement) {
+          placement.checkboxElement.click();
+          excludedCount++;
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+      } catch (e) {
+        Logger.error('Error excluding suspected', placement.channel, e);
+      }
+    }
+    
+    // Trigger edit/exclude flow
     try {
+      await new Promise(resolve => setTimeout(resolve, 300));
       const editBtn = findButtonByText('Edit');
       if (editBtn) {
         editBtn.click();
@@ -231,7 +327,10 @@
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'scanPlacements') {
       findPlacements().then(result => {
-        chrome.storage.local.set({ wastedSpend: result.totalSpend });
+        chrome.storage.local.set({ 
+          wastedSpend: result.totalSpend,
+          lastScan: Date.now()
+        });
         sendResponse({ success: true, ...result });
       }).catch(error => {
         Logger.error('Scan error:', error);
@@ -249,10 +348,21 @@
       });
       return true;
     }
+    
+    if (request.action === 'getStats') {
+      sendResponse({
+        confirmed: foundPlacements.length,
+        suspected: suspectedPlacements.length,
+        totalSpend: totalWastedSpend
+      });
+      return true;
+    }
   });
   
   // Initialize
-  injectBadge();
-  initMutationObserver();
-  Logger.log('Content script loaded and ready');
+  initializeData().then(() => {
+    injectBadge();
+    initMutationObserver();
+    Logger.log('Content script loaded with production optimizations');
+  });
 })();
