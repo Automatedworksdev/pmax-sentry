@@ -139,7 +139,7 @@ async function syncChannelData(force = false) {
         headers: {
           'apikey': SERVICE_KEY,
           'Authorization': `Bearer ${SERVICE_KEY}`,
-          'Range': '0-9999'
+          'Range': '0-59999'
         }
       }
     );
