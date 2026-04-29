@@ -28,7 +28,7 @@
   <!-- DASHBOARD VIEW -->
   <div id="dashboard-view" class="dashboard-view hidden">
     
-    <!-- Header -->
+    <!-- Header with refresh icon -->
     <div class="dash-header">
       <div class="dash-brand">
         <img src="icons/icon48.png" alt="PMax Sentry" class="dash-logo">
@@ -37,19 +37,21 @@
           <span class="dash-version">v2.2</span>
         </div>
       </div>
-      <div class="dash-badge">✓ Active</div>
+      <div class="dash-actions-top">
+        <button id="sync-btn" class="refresh-btn" title="Sync Database">
+          <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+          </svg>
+        </button>
+        <div class="dash-badge">✓ Active</div>
+      </div>
     </div>
     
     <!-- Stats -->
     <div class="dash-stats">
-      <div class="stat-box channels-box">
-        <div class="stat-header">
-          <span class="stat-num" id="channel-count">0</span>
-          <button id="sync-btn" class="sync-btn" title="Sync Database">
-            <span class="sync-icon">🔄</span>
-          </button>
-        </div>
-        <span class="stat-label" id="channels-label">Channels</span>
+      <div class="stat-box stat-box-channels">
+        <span class="stat-num" id="channel-count">0</span>
+        <span class="stat-label">Channels</span>
         <div id="sync-progress" class="sync-progress hidden">
           <div class="progress-bar">
             <div class="progress-fill" id="progress-fill"></div>
@@ -61,8 +63,8 @@
         <span class="stat-num" id="data-version">2.2</span>
         <span class="stat-label">Version</span>
       </div>
-      <div class="stat-box">
-        <span class="stat-num" id="last-sync">Just now</span>
+      <div class="stat-box stat-box-synced">
+        <span class="stat-num" id="last-sync">--</span>
         <span class="stat-label">Synced</span>
       </div>
     </div>

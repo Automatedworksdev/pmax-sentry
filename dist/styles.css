@@ -444,6 +444,12 @@ body {
   letter-spacing: 0.05em;
 }
 
+.dash-actions-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .dash-badge {
   padding: var(--space-1) var(--space-3);
   background: var(--success-bg);
@@ -451,6 +457,46 @@ body {
   font-size: 12px;
   font-weight: 600;
   border-radius: 20px;
+}
+
+/* Refresh Button in Header */
+.refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  color: var(--text-secondary);
+}
+
+.refresh-btn:hover {
+  background: var(--gray-100);
+  color: var(--primary);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.refresh-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .refresh-btn:hover {
+    background: var(--gray-700);
+  }
 }
 
 /* Stats Bar */
@@ -466,7 +512,12 @@ body {
   border: 1px solid var(--gray-200);
   border-radius: 10px;
   padding: var(--space-4);
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 80px;
+  position: relative;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -477,11 +528,11 @@ body {
 }
 
 .stat-num {
-  display: block;
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--primary);
-  margin-bottom: var(--space-1);
+  line-height: 1.2;
+  margin-bottom: var(--space-2);
 }
 
 .stat-label {
@@ -489,6 +540,79 @@ body {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+/* Channels box with progress */
+.stat-box-channels {
+  justify-content: center;
+}
+
+/* Sync progress inside channels box */
+.sync-progress {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 8px;
+  background: var(--gray-50);
+  border-radius: 6px;
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #10b981);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.progress-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sync-progress {
+    background: var(--gray-700);
+  }
+  
+  .progress-bar {
+    background: var(--gray-600);
+  }
+}
+
+/* Pulsing animation for loading state */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulsing {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Sync status states */
+.sync-pending {
+  color: var(--primary) !important;
+}
+
+.sync-error {
+  color: var(--error) !important;
+}
+
+.sync-complete {
+  color: var(--success) !important;
 }
 
 /* Status */
@@ -503,7 +627,7 @@ body {
   text-align: center;
 }
 
-/* Actions */
+/* Actions - Match tile width and radius */
 .dash-actions {
   display: flex;
   flex-direction: column;
@@ -512,6 +636,7 @@ body {
 }
 
 .dash-btn {
+  width: 100%;
   height: 44px;
   padding: var(--space-3) var(--space-6);
   font-size: 14px;
@@ -521,6 +646,9 @@ body {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dash-btn-primary {

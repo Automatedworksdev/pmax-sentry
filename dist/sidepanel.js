@@ -76,31 +76,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (syncStatus?.syncStatus === 'in_progress') {
           channelCount.textContent = '...';
           channelCount.classList.add('pulsing');
-          showSyncProgress();
+          // Show progress bar
+          const progressEl = document.getElementById('sync-progress');
+          if (progressEl) progressEl.classList.remove('hidden');
         } else if (stats.channelCount > 0) {
           channelCount.textContent = stats.channelCount.toLocaleString();
           channelCount.classList.remove('pulsing');
-          hideSyncProgress();
+          // Hide progress bar
+          const progressEl = document.getElementById('sync-progress');
+          if (progressEl) progressEl.classList.add('hidden');
         } else {
           channelCount.textContent = '0';
           channelCount.classList.remove('pulsing');
-          hideSyncProgress();
         }
       }
       if (dataVersion) dataVersion.textContent = stats.version || '2.2';
       if (lastSync) {
         if (syncStatus?.syncStatus === 'completed' && stats.syncedAt) {
           const date = new Date(stats.syncedAt);
-          lastSync.textContent = date.toLocaleTimeString();
-          lastSync.classList.remove('sync-pending');
+          lastSync.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          lastSync.classList.remove('sync-pending', 'sync-error');
         } else if (syncStatus?.syncStatus === 'failed') {
           lastSync.textContent = 'Failed';
           lastSync.classList.add('sync-error');
+          lastSync.classList.remove('sync-pending');
         } else if (syncStatus?.syncStatus === 'in_progress') {
           lastSync.textContent = 'Syncing...';
           lastSync.classList.add('sync-pending');
+          lastSync.classList.remove('sync-error');
         } else {
-          lastSync.textContent = 'Never';
+          lastSync.textContent = '--';
           lastSync.classList.remove('sync-pending', 'sync-error');
         }
       }
@@ -141,18 +146,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  // Sync button click handler
-  if (document.getElementById('sync-btn')) {
-    document.getElementById('sync-btn').addEventListener('click', async () => {
-      const syncBtn = document.getElementById('sync-btn');
-      const syncIcon = syncBtn.querySelector('.sync-icon');
+  // Sync button click handler (now in header)
+  const refreshBtn = document.getElementById('sync-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      const refreshIcon = refreshBtn.querySelector('.refresh-icon');
       
-      syncBtn.disabled = true;
-      if (syncIcon) syncIcon.classList.add('spinning');
+      refreshBtn.disabled = true;
+      if (refreshIcon) refreshIcon.classList.add('spinning');
       if (statusEl) statusEl.textContent = 'Syncing...';
-      if (lastSync) lastSync.textContent = 'Syncing...';
       
-      showSyncProgress();
+      // Show progress in channels box
+      const channelCount = document.getElementById('channel-count');
+      const progressEl = document.getElementById('sync-progress');
+      
+      if (channelCount) {
+        channelCount.textContent = '...';
+        channelCount.classList.add('pulsing');
+      }
+      if (progressEl) {
+        progressEl.classList.remove('hidden');
+      }
       
       await chrome.runtime.sendMessage({ action: 'forceRefresh' });
       
@@ -161,12 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
         const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
         
-        syncBtn.disabled = false;
-        if (syncIcon) syncIcon.classList.remove('spinning');
+        refreshBtn.disabled = false;
+        if (refreshIcon) refreshIcon.classList.remove('spinning');
         
         if (result?.syncStatus === 'completed' && stats?.channelCount > 0) {
           if (statusEl) statusEl.textContent = 'Ready to scan';
-          hideSyncProgress();
+          if (progressEl) progressEl.classList.add('hidden');
+          if (channelCount) channelCount.classList.remove('pulsing');
         } else {
           if (statusEl) statusEl.textContent = 'Sync failed';
         }
