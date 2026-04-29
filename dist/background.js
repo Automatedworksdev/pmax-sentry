@@ -323,12 +323,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.runtime.sendMessage({
       action: 'scanResults',
       data: request.data
-    }).catch(() => {});
+    }).catch(() => {
+      // Sidepanel might not be open, ignore
+    });
     sendResponse({ received: true });
     return true;
   }
   
   return false;
+});
+
+// Handle connection errors gracefully
+chrome.runtime.onConnect.addListener((port) => {
+  console.log('[PMax] Port connected:', port.name);
+  
+  port.onDisconnect.addListener(() => {
+    if (chrome.runtime.lastError) {
+      console.log('[PMax] Port disconnected:', chrome.runtime.lastError.message);
+    }
+  });
 });
 
 // Auto-sync on install/update

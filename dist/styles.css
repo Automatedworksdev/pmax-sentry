@@ -515,7 +515,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   min-height: 80px;
   position: relative;
 }
@@ -531,8 +531,12 @@ body {
   font-size: 24px;
   font-weight: 700;
   color: var(--primary);
-  line-height: 1.2;
-  margin-bottom: var(--space-2);
+  line-height: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
 }
 
 .stat-label {
@@ -541,30 +545,33 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   line-height: 1;
+  margin-top: auto;
+  padding-top: var(--space-2);
 }
 
-/* Channels box with progress */
+/* Channels box with progress - content stays centered */
 .stat-box-channels {
   justify-content: center;
 }
 
-/* Sync progress inside channels box */
+/* Sync progress pinned to bottom, doesn't shift content */
 .sync-progress {
   position: absolute;
   bottom: 8px;
   left: 8px;
   right: 8px;
-  padding: 8px;
+  padding: 6px 8px;
   background: var(--gray-50);
   border-radius: 6px;
+  z-index: 10;
 }
 
 .progress-bar {
-  height: 4px;
+  height: 3px;
   background: var(--gray-200);
   border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .progress-fill {
@@ -576,10 +583,11 @@ body {
 }
 
 .progress-text {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-secondary);
   text-align: center;
   display: block;
+  line-height: 1;
 }
 
 @media (prefers-color-scheme: dark) {

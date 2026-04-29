@@ -1,6 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[PMax Sentry] Sidepanel loaded');
   
+  // Check if extension context is valid
+  if (!chrome.runtime?.id) {
+    console.error('[PMax] Extension context invalid');
+    return;
+  }
+  
   // Get elements
   const licenseView = document.getElementById('license-view');
   const dashboardView = document.getElementById('dashboard-view');
@@ -24,17 +30,36 @@ document.addEventListener('DOMContentLoaded', () => {
   
   let scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 }, categoryTotals: {} };
   
+  // Safe message sender with connection check
+  function sendMessage(message, callback) {
+    if (!chrome.runtime?.id) {
+      console.error('[PMax] Extension context invalid');
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[PMax] Message error:', chrome.runtime.lastError.message);
+          return;
+        }
+        if (callback) callback(response);
+      });
+    } catch (e) {
+      console.error('[PMax] Send message failed:', e);
+    }
+  }
+  
   // Check license status on load
   checkLicenseStatus();
   
   function checkLicenseStatus() {
-    chrome.runtime.sendMessage({ action: 'getLicenseStatus' }, (response) => {
+    sendMessage({ action: 'getLicenseStatus' }, (response) => {
       if (response?.valid) {
         showDashboard();
         loadStats();
         
         // Check if sync is needed and auto-trigger
-        chrome.runtime.sendMessage({ action: 'getSyncStatus' }, (syncStatus) => {
+        sendMessage({ action: 'getSyncStatus' }, (syncStatus) => {
           if (syncStatus?.syncStatus !== 'completed') {
             startSyncPolling();
           }
@@ -47,11 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Auto-sync if data is missing
   async function autoSyncIfNeeded() {
-    const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
+    const stats = await new Promise((resolve) => {
+      sendMessage({ action: 'getStats' }, resolve);
+    });
     if (!stats.channelCount) {
       console.log('[PMax] No data found, auto-syncing...');
       if (statusEl) statusEl.textContent = 'Syncing data...';
-      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+      await new Promise((resolve) => {
+        sendMessage({ action: 'forceRefresh' }, resolve);
+      });
       await loadStats();
       if (statusEl) statusEl.textContent = 'Ready to scan';
     }
@@ -68,8 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   async function loadStats() {
-    const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
-    const syncStatus = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
+    const stats = await new Promise((resolve) => {
+      sendMessage({ action: 'getStats' }, resolve);
+    });
+    const syncStatus = await new Promise((resolve) => {
+      sendMessage({ action: 'getSyncStatus' }, resolve);
+    });
     
     if (stats) {
       if (channelCount) {
@@ -168,12 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
         progressEl.classList.remove('hidden');
       }
       
-      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+      await sendMessage({ action: 'forceRefresh' });
       
       // Check result and update UI
       setTimeout(async () => {
-        const result = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
-        const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
+        const result = await new Promise((resolve) => {
+          sendMessage({ action: 'getSyncStatus' }, resolve);
+        });
+        const stats = await new Promise((resolve) => {
+          sendMessage({ action: 'getStats' }, resolve);
+        });
         
         refreshBtn.disabled = false;
         if (refreshIcon) refreshIcon.classList.remove('spinning');
@@ -197,7 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (syncPollInterval) clearInterval(syncPollInterval);
     
     syncPollInterval = setInterval(async () => {
-      const result = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
+      const result = await new Promise((resolve) => {
+        sendMessage({ action: 'getSyncStatus' }, resolve);
+      });
       
       if (result?.syncStatus === 'in_progress') {
         updateProgress(result.syncProgress || 0);
@@ -205,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(syncPollInterval);
         syncPollInterval = null;
         await loadStats();
-        hideSyncProgress();
       } else if (result?.syncStatus === 'failed') {
         clearInterval(syncPollInterval);
         syncPollInterval = null;
@@ -242,7 +280,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const startTime = Date.now();
       
       try {
-        const response = await chrome.runtime.sendMessage({ action: 'validateLicense', key });
+        const response = await new Promise((resolve) => {
+          sendMessage({ action: 'validateLicense', key }, resolve);
+        });
         
         const elapsed = Date.now() - startTime;
         console.log(`[PMax] License validation took ${elapsed}ms`);
@@ -361,8 +401,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tabs[0]?.id) throw new Error('No tab');
         
-        // Try to scan
-        const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' });
+        // Try to scan with error handling
+        const response = await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, (resp) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(resp);
+            }
+          });
+        });
         
         scanBtn.disabled = false;
         scanBtn.textContent = 'Scan Placements';
@@ -404,6 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.id) {
           chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('[PMax] Exclude error:', chrome.runtime.lastError.message);
+              excludeBtn.disabled = false;
+              return;
+            }
             excludeBtn.disabled = false;
             if (response?.success) {
               if (statusEl) statusEl.textContent = `Excluded ${response.excludedCount}`;
