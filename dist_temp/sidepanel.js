@@ -32,13 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (response?.valid) {
         showDashboard();
         loadStats();
-        
-        // Check if sync is needed and auto-trigger
-        chrome.runtime.sendMessage({ action: 'getSyncStatus' }, (syncStatus) => {
-          if (syncStatus?.syncStatus !== 'completed') {
-            startSyncPolling();
-          }
-        });
+        // AUTO-SYNC: If data is empty, trigger sync immediately
+        autoSyncIfNeeded();
       } else {
         showLicenseView();
       }
@@ -69,144 +64,33 @@ document.addEventListener('DOMContentLoaded', () => {
   
   async function loadStats() {
     const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
-    const syncStatus = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
-    
     if (stats) {
-      if (channelCount) {
-        if (syncStatus?.syncStatus === 'in_progress') {
-          channelCount.textContent = '...';
-          channelCount.classList.add('pulsing');
-          showSyncProgress();
-        } else if (stats.channelCount > 0) {
-          channelCount.textContent = stats.channelCount.toLocaleString();
-          channelCount.classList.remove('pulsing');
-          hideSyncProgress();
-        } else {
-          channelCount.textContent = '0';
-          channelCount.classList.remove('pulsing');
-          hideSyncProgress();
-        }
-      }
+      if (channelCount) channelCount.textContent = stats.channelCount || '0';
       if (dataVersion) dataVersion.textContent = stats.version || '2.2';
       if (lastSync) {
-        if (syncStatus?.syncStatus === 'completed' && stats.syncedAt) {
+        if (stats.syncedAt) {
           const date = new Date(stats.syncedAt);
           lastSync.textContent = date.toLocaleTimeString();
-          lastSync.classList.remove('sync-pending');
-        } else if (syncStatus?.syncStatus === 'failed') {
-          lastSync.textContent = 'Failed';
-          lastSync.classList.add('sync-error');
-        } else if (syncStatus?.syncStatus === 'in_progress') {
-          lastSync.textContent = 'Syncing...';
-          lastSync.classList.add('sync-pending');
         } else {
           lastSync.textContent = 'Never';
-          lastSync.classList.remove('sync-pending', 'sync-error');
         }
       }
     }
   }
   
-  function showSyncProgress() {
-    const progressEl = document.getElementById('sync-progress');
-    const progressText = document.getElementById('progress-text');
-    const progressFill = document.getElementById('progress-fill');
-    const channelsLabel = document.getElementById('channels-label');
-    
-    if (progressEl) {
-      progressEl.classList.remove('hidden');
-      channelsLabel.textContent = 'Downloading...';
-    }
-  }
-  
-  function hideSyncProgress() {
-    const progressEl = document.getElementById('sync-progress');
-    const channelsLabel = document.getElementById('channels-label');
-    
-    if (progressEl) {
-      progressEl.classList.add('hidden');
-      channelsLabel.textContent = 'Channels';
-    }
-  }
-  
-  function updateProgress(percent) {
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    
-    if (progressFill) {
-      progressFill.style.width = percent + '%';
-    }
-    if (progressText) {
-      progressText.textContent = `Downloading Database... ${percent}%`;
-    }
-  }
-  
-  // Sync button click handler
-  if (document.getElementById('sync-btn')) {
-    document.getElementById('sync-btn').addEventListener('click', async () => {
-      const syncBtn = document.getElementById('sync-btn');
-      const syncIcon = syncBtn.querySelector('.sync-icon');
-      
-      syncBtn.disabled = true;
-      if (syncIcon) syncIcon.classList.add('spinning');
-      if (statusEl) statusEl.textContent = 'Syncing...';
-      if (lastSync) lastSync.textContent = 'Syncing...';
-      
-      showSyncProgress();
-      
-      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
-      
-      // Check result and update UI
-      setTimeout(async () => {
-        const result = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
-        const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
-        
-        syncBtn.disabled = false;
-        if (syncIcon) syncIcon.classList.remove('spinning');
-        
-        if (result?.syncStatus === 'completed' && stats?.channelCount > 0) {
-          if (statusEl) statusEl.textContent = 'Ready to scan';
-          hideSyncProgress();
-        } else {
-          if (statusEl) statusEl.textContent = 'Sync failed';
-        }
-        
-        await loadStats();
-      }, 2000);
-    });
-  }
-  
-  // Poll sync status while in progress
-  let syncPollInterval = null;
-  function startSyncPolling() {
-    if (syncPollInterval) clearInterval(syncPollInterval);
-    
-    syncPollInterval = setInterval(async () => {
-      const result = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
-      
-      if (result?.syncStatus === 'in_progress') {
-        updateProgress(result.syncProgress || 0);
-      } else if (result?.syncStatus === 'completed') {
-        clearInterval(syncPollInterval);
-        syncPollInterval = null;
-        await loadStats();
-        hideSyncProgress();
-      } else if (result?.syncStatus === 'failed') {
-        clearInterval(syncPollInterval);
-        syncPollInterval = null;
-        const progressText = document.getElementById('progress-text');
-        if (progressText) progressText.textContent = 'Sync failed - Click retry';
-        progressText.style.color = '#ef4444';
-      }
-    }, 1500);
-  }
-  
-  // Make sync text clickable (secondary method)
+  // Make sync text clickable
   if (lastSync) {
     lastSync.style.cursor = 'pointer';
     lastSync.title = 'Click to refresh data';
     lastSync.addEventListener('click', async () => {
-      document.getElementById('sync-btn')?.click();
+      if (statusEl) statusEl.textContent = 'Syncing...';
+      lastSync.textContent = '...';
+      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+      await loadStats();
+      if (statusEl) statusEl.textContent = 'Data refreshed!';
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = 'Ready to scan';
+      }, 2000);
     });
   }
   
@@ -250,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => {
             showDashboard();
             loadStats();
-            startSyncPolling(); // Start polling for sync progress
+            startSyncProgressIndicator();
           }, 300);
           
         } else {
