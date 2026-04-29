@@ -132,25 +132,54 @@ async function syncChannelData(force = false) {
     
     console.log('[PMax] Fetching fresh data from Supabase (all rows)...');
     
-    // Fetch ALL rows from Supabase (using Range header for up to 10,000 rows)
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/master_junk_list?select=channel_name,category&status=eq.active`,
-      {
-        headers: {
-          'apikey': SERVICE_KEY,
-          'Authorization': `Bearer ${SERVICE_KEY}`,
-          'Range': '0-59999'
+    // Fetch ALL rows using Range pagination (1000 per request, max 60000)
+    let allChannels = [];
+    let start = 0;
+    const pageSize = 1000;
+    const maxRows = 60000;
+    
+    while (start < maxRows) {
+      const end = start + pageSize - 1;
+      console.log(`[PMax] Fetching rows ${start}-${end}...`);
+      
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/master_junk_list?select=channel_name,category&status=eq.active`,
+        {
+          headers: {
+            'apikey': SERVICE_KEY,
+            'Authorization': `Bearer ${SERVICE_KEY}`,
+            'Range': `${start}-${end}`
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const channels = await response.json();
+      
+      if (channels.length === 0) {
+        break; // No more data
+      }
+      
+      allChannels = allChannels.concat(channels);
+      console.log(`[PMax] Total so far: ${allChannels.length}`);
+      
+      // Check if we got a full page
+      const contentRange = response.headers.get('content-range');
+      if (contentRange) {
+        const total = parseInt(contentRange.split('/')[1]);
+        if (allChannels.length >= total) {
+          break; // Got all data
         }
       }
-    );
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      
+      start += pageSize;
     }
     
-    const channels = await response.json();
-    
-    console.log(`[PMax] Fetched ${channels.length} channels from Supabase`);
+    const channels = allChannels;
+    console.log(`[PMax] Final total: ${channels.length} channels`);
     
     if (!channels || channels.length === 0) {
       throw new Error('No channels returned');
