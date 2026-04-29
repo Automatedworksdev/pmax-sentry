@@ -54,11 +54,20 @@
   
   // Initialize
   async function initialize() {
+    console.log('[PMax] Initializing content script...');
+    
     const result = await chrome.storage.local.get([
       'licensed', 
       'pmaxData', 
       'suspectedKeywords'
     ]);
+    
+    console.log('[PMax] Storage data:', {
+      licensed: result.licensed,
+      pmaxDataExists: !!result.pmaxData,
+      pmaxDataChannels: result.pmaxData?.channels?.length,
+      suspectedKeywords: result.suspectedKeywords?.length
+    });
     
     isLicensed = result.licensed === true;
     
@@ -79,6 +88,8 @@
       dataLoaded = true;
       
       console.log(`[PMax] Loaded ${channelSet.size} channels, ${suspectedKeywords.length} keywords`);
+    } else {
+      console.log('[PMax] No data loaded - licensed:', isLicensed, 'pmaxData:', !!result.pmaxData);
     }
     
     injectBadge();
@@ -245,14 +256,16 @@
   
   // Scan
   async function scanPlacements() {
-    console.log('[PMax] Scanning...');
+    console.log('[PMax] Scanning...', { isLicensed, dataLoaded, channelSetSize: channelSet.size });
     
     if (!isLicensed) {
+      console.log('[PMax] Not licensed');
       return { error: 'License required', needsLicense: true };
     }
     
     if (!dataLoaded) {
-      return { error: 'Data not loaded. Refresh page.', needsRefresh: true };
+      console.log('[PMax] Data not loaded');
+      return { error: 'Data not loaded. Click Sync.', needsRefresh: true };
     }
     
     tier1Placements = [];

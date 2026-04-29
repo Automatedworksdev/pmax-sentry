@@ -1,10 +1,10 @@
 // PMax Sentry Background v2.2 - Intelligence Engine
-// Caches data with versioning, supports community reporting
+// Auto-syncs data on login, ensures cache is always available
 
 const SUPABASE_URL = 'https://mlgtlirrhlftjgfdsajy.supabase.co';
 const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3RsaXJyaGxmdGpnZmRzYWp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM0NzUxMSwiZXhwIjoyMDkyOTIzNTExfQ.yxGJs_XPV6PqVxfsp65G56A0TZrYW0QkxmgdvI8765k';
 
-const DATA_VERSION = '2.1';
+const DATA_VERSION = '2.2';
 const CACHE_KEY = 'pmaxData';
 const VERSION_KEY = 'pmaxDataVersion';
 
@@ -21,15 +21,31 @@ const JUNK_KEYWORDS = [
   'clickbait', 'prank', 'challenge', 'reaction video', 'meme'
 ];
 
-// Categories for waste tracking
-const CATEGORIES = ['Kids', 'Gaming', 'MFA', 'ASMR', 'News', 'Music', 'General'];
+// Embedded fallback data (always available)
+const EMBEDDED_CHANNELS = [
+  'cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol',
+  'gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports', 'gamer',
+  'asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise',
+  'breaking news', 'live news', '24/7 news', 'news channel',
+  'mobile reward', 'app reward', 'earn money', 'cash app',
+  'music playlist', 'pop songs', 'lyrics video'
+];
+
+const EMBEDDED_CATEGORIES = {
+  'Kids': ['cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol'],
+  'Gaming': ['gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports', 'gamer'],
+  'ASMR': ['asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise'],
+  'News': ['breaking news', 'live news', '24/7 news', 'news channel'],
+  'MFA': ['mobile reward', 'app reward', 'earn money', 'cash app'],
+  'Music': ['music playlist', 'pop songs', 'lyrics video']
+};
 
 // Initialize
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
-// Validate license and sync data
+// Validate license and ALWAYS sync data immediately
 async function validateLicense(key) {
   try {
     const response = await fetch(
@@ -76,17 +92,25 @@ async function validateLicense(key) {
       })
     });
     
-    // Sync channel data (with caching)
-    await syncChannelData();
+    // CRITICAL: Sync channel data IMMEDIATELY before returning success
+    console.log('[PMax] License valid, syncing data...');
+    const syncResult = await syncChannelData();
     
-    // Save license
+    // Save license info
     await chrome.storage.local.set({
       licenseKey: key,
       licensed: true,
       licenseInfo: { ...license, use_count: license.use_count + 1 }
     });
     
-    return { valid: true, uses: license.use_count + 1, maxUses: license.max_uses };
+    console.log('[PMax] License activated, data synced:', syncResult);
+    
+    return { 
+      valid: true, 
+      uses: license.use_count + 1, 
+      maxUses: license.max_uses,
+      synced: syncResult
+    };
     
   } catch (error) {
     console.error('Validation error:', error);
@@ -94,18 +118,19 @@ async function validateLicense(key) {
   }
 }
 
-// Sync channel data with versioning
-async function syncChannelData() {
+// Sync channel data - returns true if successful
+async function syncChannelData(force = false) {
   try {
     // Check if we need to sync
-    const cached = await chrome.storage.local.get([VERSION_KEY, CACHE_KEY]);
-    
-    if (cached[VERSION_KEY] === DATA_VERSION && cached[CACHE_KEY]?.channels?.length) {
-      console.log('[PMax] Using cached data v' + DATA_VERSION);
-      return;
+    if (!force) {
+      const cached = await chrome.storage.local.get([VERSION_KEY, CACHE_KEY]);
+      if (cached[VERSION_KEY] === DATA_VERSION && cached[CACHE_KEY]?.channels?.length > 0) {
+        console.log('[PMax] Using cached data');
+        return { success: true, source: 'cache', channels: cached[CACHE_KEY].channels.length };
+      }
     }
     
-    console.log('[PMax] Syncing fresh data from Supabase...');
+    console.log('[PMax] Fetching fresh data from Supabase...');
     
     // Fetch from Supabase
     const response = await fetch(
@@ -119,12 +144,16 @@ async function syncChannelData() {
     );
     
     if (!response.ok) {
-      throw new Error('Failed to fetch channel data');
+      throw new Error(`HTTP ${response.status}`);
     }
     
     const channels = await response.json();
     
-    // Build lookup sets by category
+    if (!channels || channels.length === 0) {
+      throw new Error('No channels returned');
+    }
+    
+    // Build data structure
     const data = {
       channels: channels.map(c => c.channel_name.toLowerCase()),
       categories: {},
@@ -146,21 +175,16 @@ async function syncChannelData() {
       suspectedKeywords: JUNK_KEYWORDS
     });
     
-    console.log(`[PMax] Synced ${channels.length} channels in ${Object.keys(data.categories).length} categories`);
+    console.log(`[PMax] Synced ${channels.length} channels from Supabase`);
+    return { success: true, source: 'supabase', channels: channels.length };
     
   } catch (error) {
     console.error('[PMax] Sync error:', error);
-    // Fallback to embedded data - ensure we always have data
+    
+    // Fallback to embedded data
     const fallbackData = {
-      channels: EMBEDDED_CHANNELS.map(c => c.toLowerCase()),
-      categories: {
-        'Kids': ['cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol'].map(c => c.toLowerCase()),
-        'Gaming': ['gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports'].map(c => c.toLowerCase()),
-        'ASMR': ['asmr', 'sleep sounds', 'relaxation', 'meditation'].map(c => c.toLowerCase()),
-        'News': ['breaking news', 'live news', '24/7 news'].map(c => c.toLowerCase()),
-        'Music': ['music', 'pop songs', 'lyrics video'].map(c => c.toLowerCase()),
-        'MFA': ['mobile reward', 'app reward', 'earn money'].map(c => c.toLowerCase())
-      },
+      channels: EMBEDDED_CHANNELS,
+      categories: EMBEDDED_CATEGORIES,
       version: DATA_VERSION,
       syncedAt: Date.now()
     };
@@ -172,6 +196,7 @@ async function syncChannelData() {
     });
     
     console.log('[PMax] Using fallback data with', fallbackData.channels.length, 'channels');
+    return { success: true, source: 'fallback', channels: fallbackData.channels.length };
   }
 }
 
@@ -194,11 +219,7 @@ async function submitCommunityReport(data) {
       })
     });
     
-    if (!response.ok) {
-      throw new Error('Failed to submit report');
-    }
-    
-    return { success: true };
+    return { success: response.ok };
     
   } catch (error) {
     console.error('[PMax] Report error:', error);
@@ -209,8 +230,8 @@ async function submitCommunityReport(data) {
 // Force data refresh
 async function forceRefresh() {
   await chrome.storage.local.remove([VERSION_KEY, CACHE_KEY]);
-  await syncChannelData();
-  return { success: true };
+  const result = await syncChannelData(true);
+  return result;
 }
 
 // Message handlers
@@ -243,15 +264,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'getStats') {
-    chrome.storage.local.get([CACHE_KEY]).then(data => {
+    chrome.storage.local.get([CACHE_KEY, 'licenseInfo']).then(data => {
       const cached = data[CACHE_KEY] || {};
       sendResponse({
         channelCount: cached.channels?.length || 0,
         categories: cached.categories || {},
         version: cached.version,
-        syncedAt: cached.syncedAt
+        syncedAt: cached.syncedAt,
+        uses: data.licenseInfo?.use_count,
+        maxUses: data.licenseInfo?.max_uses
       });
     });
+    return true;
+  }
+  
+  if (request.action === 'syncData') {
+    syncChannelData(request.force).then(sendResponse);
     return true;
   }
   

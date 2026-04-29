@@ -25,14 +25,32 @@ document.addEventListener('DOMContentLoaded', () => {
   let scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 }, categoryTotals: {} };
   
   // Check license status on load
-  chrome.runtime.sendMessage({ action: 'getLicenseStatus' }, (response) => {
-    if (response?.valid) {
-      showDashboard();
-      loadStats();
-    } else {
-      showLicenseView();
+  checkLicenseStatus();
+  
+  function checkLicenseStatus() {
+    chrome.runtime.sendMessage({ action: 'getLicenseStatus' }, (response) => {
+      if (response?.valid) {
+        showDashboard();
+        loadStats();
+        // AUTO-SYNC: If data is empty, trigger sync immediately
+        autoSyncIfNeeded();
+      } else {
+        showLicenseView();
+      }
+    });
+  }
+  
+  // Auto-sync if data is missing
+  async function autoSyncIfNeeded() {
+    const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
+    if (!stats.channelCount) {
+      console.log('[PMax] No data found, auto-syncing...');
+      if (statusEl) statusEl.textContent = 'Syncing data...';
+      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+      await loadStats();
+      if (statusEl) statusEl.textContent = 'Ready to scan';
     }
-  });
+  }
   
   function showLicenseView() {
     licenseView.classList.remove('hidden');
@@ -44,19 +62,41 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboardView.classList.remove('hidden');
   }
   
-  function loadStats() {
-    chrome.runtime.sendMessage({ action: 'getStats' }, (stats) => {
-      if (stats) {
-        if (channelCount) channelCount.textContent = stats.channelCount || '0';
-        if (dataVersion) dataVersion.textContent = stats.version || '2.2';
-        if (lastSync) lastSync.textContent = stats.syncedAt ? 'Just now' : 'Never';
+  async function loadStats() {
+    const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
+    if (stats) {
+      if (channelCount) channelCount.textContent = stats.channelCount || '0';
+      if (dataVersion) dataVersion.textContent = stats.version || '2.2';
+      if (lastSync) {
+        if (stats.syncedAt) {
+          const date = new Date(stats.syncedAt);
+          lastSync.textContent = date.toLocaleTimeString();
+        } else {
+          lastSync.textContent = 'Never';
+        }
       }
+    }
+  }
+  
+  // Make sync text clickable
+  if (lastSync) {
+    lastSync.style.cursor = 'pointer';
+    lastSync.title = 'Click to refresh data';
+    lastSync.addEventListener('click', async () => {
+      if (statusEl) statusEl.textContent = 'Syncing...';
+      lastSync.textContent = '...';
+      await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+      await loadStats();
+      if (statusEl) statusEl.textContent = 'Data refreshed!';
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = 'Ready to scan';
+      }, 2000);
     });
   }
   
   // License validation
   if (validateBtn) {
-    validateBtn.addEventListener('click', () => {
+    validateBtn.addEventListener('click', async () => {
       const key = licenseInput.value.trim();
       if (!key) {
         if (licenseStatus) licenseStatus.textContent = 'Enter a license key';
@@ -64,29 +104,52 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       validateBtn.disabled = true;
-      if (licenseStatus) licenseStatus.textContent = 'Verifying...';
+      if (licenseStatus) licenseStatus.textContent = 'Verifying & syncing...';
       
-      chrome.runtime.sendMessage({ action: 'validateLicense', key }, (response) => {
-        validateBtn.disabled = false;
-        
-        if (response?.valid) {
-          if (licenseStatus) licenseStatus.textContent = '✓ Activated!';
-          setTimeout(() => {
-            showDashboard();
-            loadStats();
-          }, 1000);
-        } else {
-          if (licenseStatus) licenseStatus.textContent = response?.error || 'Invalid key';
-        }
-      });
+      const response = await chrome.runtime.sendMessage({ action: 'validateLicense', key });
+      
+      validateBtn.disabled = false;
+      
+      if (response?.valid) {
+        if (licenseStatus) licenseStatus.textContent = '✓ Activated & synced!';
+        setTimeout(() => {
+          showDashboard();
+          loadStats();
+        }, 1000);
+      } else {
+        if (licenseStatus) licenseStatus.textContent = response?.error || 'Invalid key';
+      }
     });
   }
   
-  // Scan placements
+  // Scan placements - with data check
   if (scanBtn) {
     scanBtn.addEventListener('click', async () => {
       scanBtn.disabled = true;
+      
+      // First check if data is loaded
+      const stats = await chrome.runtime.sendMessage({ action: 'getStats' });
+      
+      if (!stats.channelCount) {
+        // Data not loaded, sync first
+        if (statusEl) statusEl.textContent = 'Syncing data...';
+        scanBtn.textContent = 'Syncing...';
+        
+        await chrome.runtime.sendMessage({ action: 'forceRefresh' });
+        await loadStats();
+        
+        // Check again after sync
+        const stats2 = await chrome.runtime.sendMessage({ action: 'getStats' });
+        if (!stats2.channelCount) {
+          scanBtn.disabled = false;
+          if (statusEl) statusEl.textContent = 'Error: Data sync failed';
+          scanBtn.textContent = 'Scan Placements';
+          return;
+        }
+      }
+      
       if (statusEl) statusEl.textContent = 'Scanning...';
+      scanBtn.textContent = 'Scanning...';
       
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -96,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' });
         
         scanBtn.disabled = false;
+        scanBtn.textContent = 'Scan Placements';
         
         if (!response) {
           if (statusEl) statusEl.textContent = 'Error: Refresh page first';
@@ -116,10 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplay();
         
         const total = (response.counts?.tier1 || 0) + (response.counts?.tier2 || 0);
-        if (statusEl) statusEl.textContent = `Found ${total} placements`;
+        if (statusEl) statusEl.textContent = total > 0 ? `Found ${total} placements` : 'No waste found';
         
       } catch (err) {
         scanBtn.disabled = false;
+        scanBtn.textContent = 'Scan Placements';
         if (statusEl) statusEl.textContent = 'Error: ' + err.message;
       }
     });
@@ -195,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoryBreakdown) {
       let html = '<div style="padding:16px;">';
       const cats = scanResults.categoryTotals || {};
-      Object.keys(cats).forEach(cat => {
+      Object.keys(cats).sort((a, b) => cats[b].spend - cats[a].spend).forEach(cat => {
         html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">`;
         html += `<span>${cat}</span><span>${cats[cat].count} = £${cats[cat].spend.toFixed(2)}</span>`;
         html += `</div>`;
