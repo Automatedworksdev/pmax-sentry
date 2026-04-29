@@ -130,15 +130,16 @@ async function syncChannelData(force = false) {
       }
     }
     
-    console.log('[PMax] Fetching fresh data from Supabase...');
+    console.log('[PMax] Fetching fresh data from Supabase (all rows)...');
     
-    // Fetch from Supabase
+    // Fetch ALL rows from Supabase (using Range header for up to 10,000 rows)
     const response = await fetch(
       `${SUPABASE_URL}/rest/v1/master_junk_list?select=channel_name,category&status=eq.active`,
       {
         headers: {
           'apikey': SERVICE_KEY,
-          'Authorization': `Bearer ${SERVICE_KEY}`
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'Range': '0-9999'
         }
       }
     );
@@ -149,9 +150,13 @@ async function syncChannelData(force = false) {
     
     const channels = await response.json();
     
+    console.log(`[PMax] Fetched ${channels.length} channels from Supabase`);
+    
     if (!channels || channels.length === 0) {
       throw new Error('No channels returned');
     }
+    
+    console.log(`[PMax] Total channels to process: ${channels.length}`);
     
     // Build data structure
     const data = {

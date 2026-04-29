@@ -49,6 +49,8 @@
     'ASMR': '#10b981',
     'News': '#f59e0b',
     'Music': '#ec4899',
+    'Utility Apps': '#f97316',
+    'Foreign Language': '#06b6d4',
     'General': '#6b7280'
   };
   
