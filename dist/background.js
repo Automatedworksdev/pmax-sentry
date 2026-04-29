@@ -1,5 +1,5 @@
 // PMax Sentry Background v2.2 - Intelligence Engine
-// Auto-syncs data on login, ensures cache is always available
+// Optimized: Fast license validation + background sync
 
 const SUPABASE_URL = 'https://mlgtlirrhlftjgfdsajy.supabase.co';
 const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3RsaXJyaGxmdGpnZmRzYWp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM0NzUxMSwiZXhwIjoyMDkyOTIzNTExfQ.yxGJs_XPV6PqVxfsp65G56A0TZrYW0QkxmgdvI8765k';
@@ -97,7 +97,7 @@ async function validateLicense(key) {
       licenseKey: key,
       licensed: true,
       licenseInfo: { ...license, use_count: license.use_count + 1 },
-      syncStatus: 'pending' // Mark sync as pending
+      syncStatus: 'pending'
     });
     
     // START BACKGROUND SYNC (don't wait for it)
@@ -121,13 +121,10 @@ async function validateLicense(key) {
 async function syncChannelDataInBackground() {
   try {
     console.log('[PMax] Background sync started...');
-    
-    // Update sync status
     await chrome.storage.local.set({ syncStatus: 'in_progress', syncProgress: 0 });
     
     const result = await syncChannelData(true);
     
-    // Update sync status on completion
     await chrome.storage.local.set({ 
       syncStatus: 'completed', 
       syncProgress: 100,
@@ -154,25 +151,6 @@ async function syncChannelDataInBackground() {
     });
   }
 }
-      licenseKey: key,
-      licensed: true,
-      licenseInfo: { ...license, use_count: license.use_count + 1 }
-    });
-    
-    console.log('[PMax] License activated, data synced:', syncResult);
-    
-    return { 
-      valid: true, 
-      uses: license.use_count + 1, 
-      maxUses: license.max_uses,
-      synced: syncResult
-    };
-    
-  } catch (error) {
-    console.error('Validation error:', error);
-    return { valid: false, error: 'Network error: ' + error.message };
-  }
-}
 
 // Sync channel data - returns true if successful
 async function syncChannelData(force = false) {
@@ -188,23 +166,19 @@ async function syncChannelData(force = false) {
     
     console.log('[PMax] Fetching fresh data from Supabase (all rows)...');
     
-    // Fetch ALL rows using Range pagination (1000 per request, max 60000)
+    // Fetch ALL rows using Range pagination
     let allChannels = [];
-    let start = 0;
-    const pageSize = 1000;
+    let offset = 0;
+    const limit = 1000;
     const maxRows = 60000;
     
-    while (start < maxRows) {
-      const end = start + pageSize - 1;
-      console.log(`[PMax] Fetching rows ${start}-${end}...`);
-      
+    while (offset < maxRows) {
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/master_junk_list?select=channel_name,category&status=eq.active`,
+        `${SUPABASE_URL}/rest/v1/master_junk_list?select=channel_name,category&status=eq.active&limit=${limit}&offset=${offset}`,
         {
           headers: {
             'apikey': SERVICE_KEY,
-            'Authorization': `Bearer ${SERVICE_KEY}`,
-            'Range': `${start}-${end}`
+            'Authorization': `Bearer ${SERVICE_KEY}`
           }
         }
       );
@@ -216,22 +190,17 @@ async function syncChannelData(force = false) {
       const channels = await response.json();
       
       if (channels.length === 0) {
-        break; // No more data
+        break;
       }
       
       allChannels = allChannels.concat(channels);
-      console.log(`[PMax] Total so far: ${allChannels.length}`);
+      offset += limit;
       
-      // Check if we got a full page
-      const contentRange = response.headers.get('content-range');
-      if (contentRange) {
-        const total = parseInt(contentRange.split('/')[1]);
-        if (allChannels.length >= total) {
-          break; // Got all data
-        }
-      }
+      // Update progress
+      const progress = Math.min(Math.round((allChannels.length / 52000) * 100), 99);
+      await chrome.storage.local.set({ syncProgress: progress });
       
-      start += pageSize;
+      console.log(`[PMax] Fetched ${allChannels.length} channels so far...`);
     }
     
     const channels = allChannels;
@@ -240,8 +209,6 @@ async function syncChannelData(force = false) {
     if (!channels || channels.length === 0) {
       throw new Error('No channels returned');
     }
-    
-    console.log(`[PMax] Total channels to process: ${channels.length}`);
     
     // Build data structure
     const data = {
@@ -262,7 +229,9 @@ async function syncChannelData(force = false) {
     await chrome.storage.local.set({
       [VERSION_KEY]: DATA_VERSION,
       [CACHE_KEY]: data,
-      suspectedKeywords: JUNK_KEYWORDS
+      suspectedKeywords: JUNK_KEYWORDS,
+      syncStatus: 'completed',
+      syncProgress: 100
     });
     
     console.log(`[PMax] Synced ${channels.length} channels from Supabase`);
@@ -282,46 +251,35 @@ async function syncChannelData(force = false) {
     await chrome.storage.local.set({
       [VERSION_KEY]: DATA_VERSION,
       [CACHE_KEY]: fallbackData,
-      suspectedKeywords: JUNK_KEYWORDS
+      suspectedKeywords: JUNK_KEYWORDS,
+      syncStatus: 'fallback',
+      syncError: error.message
     });
     
-    console.log('[PMax] Using fallback data with', fallbackData.channels.length, 'channels');
-    return { success: true, source: 'fallback', channels: fallbackData.channels.length };
-  }
-}
-
-// Community report submission
-async function submitCommunityReport(data) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/community_suggestions`, {
-      method: 'POST',
-      headers: {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        channel_name: data.channelName,
-        channel_url: data.channelUrl,
-        category: data.category,
-        reason: data.reason
-      })
-    });
-    
-    return { success: response.ok };
-    
-  } catch (error) {
-    console.error('[PMax] Report error:', error);
-    return { success: false, error: error.message };
+    return { success: true, source: 'fallback', channels: EMBEDDED_CHANNELS.length };
   }
 }
 
 // Force data refresh
 async function forceRefresh() {
   await chrome.storage.local.remove([VERSION_KEY, CACHE_KEY]);
-  const result = await syncChannelData(true);
-  return result;
+  return await syncChannelData(true);
+}
+
+// Get stats for display
+async function getStats() {
+  const data = await chrome.storage.local.get([CACHE_KEY, VERSION_KEY]);
+  const cache = data[CACHE_KEY];
+  
+  if (!cache) {
+    return { channelCount: 0, version: DATA_VERSION, syncedAt: null };
+  }
+  
+  return {
+    channelCount: cache.channels?.length || 0,
+    version: cache.version || DATA_VERSION,
+    syncedAt: cache.syncedAt
+  };
 }
 
 // Message handlers
@@ -333,18 +291,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'getLicenseStatus') {
-    chrome.storage.local.get(['licensed', 'licenseInfo']).then(data => {
-      sendResponse({
-        valid: !!data.licensed,
-        uses: data.licenseInfo?.use_count,
-        maxUses: data.licenseInfo?.max_uses
+    chrome.storage.local.get(['licensed', 'licenseKey', 'licenseInfo']).then(data => {
+      sendResponse({ 
+        valid: data.licensed === true,
+        key: data.licenseKey,
+        info: data.licenseInfo
       });
     });
-    return true;
-  }
-  
-  if (request.action === 'submitReport') {
-    submitCommunityReport(request.data).then(sendResponse);
     return true;
   }
   
@@ -354,24 +307,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'getStats') {
-    chrome.storage.local.get([CACHE_KEY, 'licenseInfo']).then(data => {
-      const cached = data[CACHE_KEY] || {};
-      sendResponse({
-        channelCount: cached.channels?.length || 0,
-        categories: cached.categories || {},
-        version: cached.version,
-        syncedAt: cached.syncedAt,
-        uses: data.licenseInfo?.use_count,
-        maxUses: data.licenseInfo?.max_uses
-      });
+    getStats().then(sendResponse);
+    return true;
+  }
+  
+  if (request.action === 'getSyncStatus') {
+    chrome.storage.local.get(['syncStatus', 'syncProgress', 'lastSyncAt']).then(data => {
+      sendResponse(data);
     });
     return true;
   }
   
-  if (request.action === 'syncData') {
-    syncChannelData(request.force).then(sendResponse);
+  if (request.action === 'scanComplete') {
+    // Forward scan results to sidepanel
+    chrome.runtime.sendMessage({
+      action: 'scanResults',
+      data: request.data
+    }).catch(() => {});
+    sendResponse({ received: true });
     return true;
   }
   
-  return true;
+  return false;
 });
+
+// Auto-sync on install/update
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('[PMax] Extension installed/updated');
+});
+
+console.log('[PMax Sentry] Background script loaded v2.2');
