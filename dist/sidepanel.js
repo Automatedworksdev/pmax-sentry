@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // License validation
+  // License validation - OPTIMIZED for instant feedback
   if (validateBtn) {
     validateBtn.addEventListener('click', async () => {
       const key = licenseInput.value.trim();
@@ -103,23 +103,98 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
+      // Show loading state
       validateBtn.disabled = true;
-      if (licenseStatus) licenseStatus.textContent = 'Verifying & syncing...';
+      validateBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+      if (licenseStatus) licenseStatus.textContent = '';
       
-      const response = await chrome.runtime.sendMessage({ action: 'validateLicense', key });
+      const startTime = Date.now();
       
-      validateBtn.disabled = false;
-      
-      if (response?.valid) {
-        if (licenseStatus) licenseStatus.textContent = '✓ Activated & synced!';
-        setTimeout(() => {
-          showDashboard();
-          loadStats();
-        }, 1000);
-      } else {
-        if (licenseStatus) licenseStatus.textContent = response?.error || 'Invalid key';
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'validateLicense', key });
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[PMax] License validation took ${elapsed}ms`);
+        
+        if (response?.valid) {
+          // INSTANT SUCCESS - show dashboard immediately
+          validateBtn.innerHTML = '✓ Activated!';
+          if (licenseStatus) {
+            licenseStatus.innerHTML = `
+              <div style="color: #10b981; font-weight: 500;">
+                ✓ License Active
+                <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                  Initial sync in progress...
+                </div>
+              </div>
+            `;
+          }
+          
+          // Show dashboard immediately (don't wait for sync)
+          setTimeout(() => {
+            showDashboard();
+            loadStats();
+            startSyncProgressIndicator();
+          }, 300);
+          
+        } else {
+          validateBtn.disabled = false;
+          validateBtn.textContent = 'Activate License';
+          if (licenseStatus) {
+            licenseStatus.innerHTML = `<span style="color: #ef4444;">${response?.error || 'Invalid key'}</span>`;
+          }
+        }
+      } catch (error) {
+        validateBtn.disabled = false;
+        validateBtn.textContent = 'Activate License';
+        if (licenseStatus) {
+          licenseStatus.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
+        }
       }
     });
+  }
+  
+  // Show sync progress in dashboard
+  async function startSyncProgressIndicator() {
+    const syncIndicator = document.getElementById('sync-indicator') || createSyncIndicator();
+    
+    // Check sync status every 2 seconds
+    const checkInterval = setInterval(async () => {
+      const result = await chrome.storage.local.get(['syncStatus', 'syncProgress', 'pmaxData']);
+      
+      if (result.syncStatus === 'completed' || result.pmaxData?.channels?.length > 0) {
+        syncIndicator.innerHTML = `<span style="color: #10b981;">✓ ${result.pmaxData?.channels?.length?.toLocaleString() || ''} channels loaded</span>`;
+        syncIndicator.classList.add('sync-complete');
+        clearInterval(checkInterval);
+        loadStats(); // Refresh stats
+      } else if (result.syncStatus === 'in_progress') {
+        syncIndicator.innerHTML = `<span class="spinner-small"></span> Syncing ${result.syncProgress || 0}%...`;
+      } else if (result.syncStatus === 'failed') {
+        syncIndicator.innerHTML = `<span style="color: #ef4444;">Sync failed. <a href="#" id="retry-sync">Retry</a></span>`;
+        clearInterval(checkInterval);
+        
+        document.getElementById('retry-sync')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          chrome.runtime.sendMessage({ action: 'forceRefresh' });
+          startSyncProgressIndicator();
+        });
+      }
+    }, 2000);
+  }
+  
+  function createSyncIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'sync-indicator';
+    indicator.className = 'sync-indicator';
+    indicator.innerHTML = '<span class="spinner-small"></span> Initial sync in progress...';
+    
+    // Add to dashboard header
+    const header = document.querySelector('.dashboard-header');
+    if (header) {
+      header.appendChild(indicator);
+    }
+    
+    return indicator;
   }
   
   // Scan placements - with data check

@@ -45,7 +45,7 @@ chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
-// Validate license and ALWAYS sync data immediately
+// Validate license - FAST: only validates, sync happens in background
 async function validateLicense(key) {
   try {
     const response = await fetch(
@@ -92,12 +92,68 @@ async function validateLicense(key) {
       })
     });
     
-    // CRITICAL: Sync channel data IMMEDIATELY before returning success
-    console.log('[PMax] License valid, syncing data...');
-    const syncResult = await syncChannelData();
-    
-    // Save license info
+    // Save license info immediately (fast)
     await chrome.storage.local.set({
+      licenseKey: key,
+      licensed: true,
+      licenseInfo: { ...license, use_count: license.use_count + 1 },
+      syncStatus: 'pending' // Mark sync as pending
+    });
+    
+    // START BACKGROUND SYNC (don't wait for it)
+    console.log('[PMax] License valid, starting background sync...');
+    syncChannelDataInBackground();
+    
+    return { 
+      valid: true, 
+      uses: license.use_count + 1, 
+      maxUses: license.max_uses,
+      syncStatus: 'background'
+    };
+    
+  } catch (error) {
+    console.error('Validation error:', error);
+    return { valid: false, error: 'Network error: ' + error.message };
+  }
+}
+
+// Background sync function
+async function syncChannelDataInBackground() {
+  try {
+    console.log('[PMax] Background sync started...');
+    
+    // Update sync status
+    await chrome.storage.local.set({ syncStatus: 'in_progress', syncProgress: 0 });
+    
+    const result = await syncChannelData(true);
+    
+    // Update sync status on completion
+    await chrome.storage.local.set({ 
+      syncStatus: 'completed', 
+      syncProgress: 100,
+      lastSyncAt: Date.now()
+    });
+    
+    console.log('[PMax] Background sync completed:', result);
+    
+    // Notify sidepanel if open
+    try {
+      chrome.runtime.sendMessage({ 
+        action: 'syncComplete', 
+        channels: result.channels 
+      });
+    } catch (e) {
+      // Sidepanel might not be open, ignore
+    }
+    
+  } catch (error) {
+    console.error('[PMax] Background sync failed:', error);
+    await chrome.storage.local.set({ 
+      syncStatus: 'failed', 
+      syncError: error.message 
+    });
+  }
+}
       licenseKey: key,
       licensed: true,
       licenseInfo: { ...license, use_count: license.use_count + 1 }

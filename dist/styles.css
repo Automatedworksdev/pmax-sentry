@@ -60,6 +60,67 @@
   }
 }
 
+/* Spinner animations */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(26, 115, 232, 0.3);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.sync-indicator {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: var(--gray-100);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sync-indicator.sync-complete {
+  background: var(--success-bg);
+}
+
+/* Dark mode spinners */
+@media (prefers-color-scheme: dark) {
+  .spinner-small {
+    border-color: rgba(59, 130, 246, 0.3);
+    border-top-color: #3b82f6;
+  }
+  
+  .sync-indicator {
+    background: var(--gray-800);
+    color: var(--gray-300);
+  }
+  
+  .sync-indicator.sync-complete {
+    background: rgba(16, 185, 129, 0.2);
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
