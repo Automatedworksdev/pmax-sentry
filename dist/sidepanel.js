@@ -220,7 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Toggle suspected
   toggleSuspected.addEventListener('change', (e) => {
-    document.getElementById('tier2-section').classList.toggle('hidden', !e.target.checked);
+    const tier2List = document.getElementById('tier2-list');
+    if (tier2List) {
+      tier2List.parentElement.classList.toggle('hidden', !e.target.checked);
+    }
     
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
