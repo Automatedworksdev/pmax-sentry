@@ -150,10 +150,28 @@ async function syncChannelData() {
     
   } catch (error) {
     console.error('[PMax] Sync error:', error);
-    // Fallback to embedded data
+    // Fallback to embedded data - ensure we always have data
+    const fallbackData = {
+      channels: EMBEDDED_CHANNELS.map(c => c.toLowerCase()),
+      categories: {
+        'Kids': ['cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol'].map(c => c.toLowerCase()),
+        'Gaming': ['gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports'].map(c => c.toLowerCase()),
+        'ASMR': ['asmr', 'sleep sounds', 'relaxation', 'meditation'].map(c => c.toLowerCase()),
+        'News': ['breaking news', 'live news', '24/7 news'].map(c => c.toLowerCase()),
+        'Music': ['music', 'pop songs', 'lyrics video'].map(c => c.toLowerCase()),
+        'MFA': ['mobile reward', 'app reward', 'earn money'].map(c => c.toLowerCase())
+      },
+      version: DATA_VERSION,
+      syncedAt: Date.now()
+    };
+    
     await chrome.storage.local.set({
+      [VERSION_KEY]: DATA_VERSION,
+      [CACHE_KEY]: fallbackData,
       suspectedKeywords: JUNK_KEYWORDS
     });
+    
+    console.log('[PMax] Using fallback data with', fallbackData.channels.length, 'channels');
   }
 }
 
