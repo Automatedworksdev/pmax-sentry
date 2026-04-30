@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    excludeBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
+    excludeBtn.disabled = false;  // Always enable - will show toast if no results
     saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
   }
   
