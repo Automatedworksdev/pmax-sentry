@@ -67,8 +67,12 @@ document.addEventListener('DOMContentLoaded', function() {
       chrome.tabs.sendMessage(tabId, message, function(response) {
         clearTimeout(timeoutId);
         if (chrome.runtime.lastError) {
-          console.error('[PMax] Tab message error:', chrome.runtime.lastError.message);
-          if (callback) callback({ error: chrome.runtime.lastError.message });
+          var errorMsg = chrome.runtime.lastError.message;
+          // Only log real errors, not expected 'Receiving end does not exist' when tab closed/refreshed
+          if (errorMsg && errorMsg.indexOf('Receiving end does not exist') === -1) {
+            console.error('[PMax] Tab message error:', errorMsg);
+          }
+          if (callback) callback({ error: errorMsg });
           return;
         }
         if (callback) callback(response);
