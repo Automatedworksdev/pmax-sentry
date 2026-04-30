@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Safe message sender
   function sendMessage(message, callback) {
     if (!chrome.runtime || !chrome.runtime.id) {
-      console.error('[PMax] Extension context invalid');
+      console.error('[PMax] Extension context invalid - cannot send message');
       return;
     }
     try {
@@ -469,15 +469,16 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateDisplay() {
     if (tier1Count) tier1Count.textContent = (scanResults.counts && scanResults.counts.tier1) || 0;
     if (tier2Count) tier2Count.textContent = (scanResults.counts && scanResults.counts.tier2) || 0;
-    if (tier1Spend) tier1Spend.textContent = '£' + ((scanResults.totalSpend && scanResults.totalSpend.tier1) || 0).toFixed(2);
-    if (tier2Spend) tier2Spend.textContent = '£' + ((scanResults.totalSpend && scanResults.totalSpend.tier2) || 0).toFixed(2);
+    if (tier1Spend) tier1Spend.textContent = '£' + Number((scanResults.totalSpend && scanResults.totalSpend.tier1) || 0).toFixed(2);
+    if (tier2Spend) tier2Spend.textContent = '£' + Number((scanResults.totalSpend && scanResults.totalSpend.tier2) || 0).toFixed(2);
     
     if (tier1List) {
       tier1List.innerHTML = '';
       if (scanResults.tier1 && scanResults.tier1.length) {
         scanResults.tier1.forEach(function(p) {
           var li = document.createElement('li');
-          li.innerHTML = '<span>' + p.channel + '</span><span>£' + p.spend.toFixed(2) + '</span>';
+          var spendValue = Number(p.spend || 0).toFixed(2);
+          li.innerHTML = '<span>' + p.channel + '</span><span>£' + spendValue + '</span>';
           tier1List.appendChild(li);
         });
       } else {
@@ -490,7 +491,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (scanResults.tier2 && scanResults.tier2.length) {
         scanResults.tier2.forEach(function(p) {
           var li = document.createElement('li');
-          li.innerHTML = '<span>' + p.channel + '</span><span>£' + p.spend.toFixed(2) + '</span>';
+          var spendValue = Number(p.spend || 0).toFixed(2);
+          li.innerHTML = '<span>' + p.channel + '</span><span>£' + spendValue + '</span>';
           tier2List.appendChild(li);
         });
       } else {
@@ -505,10 +507,11 @@ document.addEventListener('DOMContentLoaded', function() {
         categoryBreakdown.innerHTML = '<div style="color:#999;text-align:center;padding:10px;">No data yet</div>';
       } else {
         categories.forEach(function(_ref) {
-          var cat = _ref[0], spend = _ref[1];
+          var cat = _ref[0], spendData = _ref[1];
+          var spendValue = typeof spendData === 'object' ? (spendData.spend || 0) : spendData;
           var div = document.createElement('div');
           div.className = 'category-row';
-          div.innerHTML = '<span class="category-name">' + cat + '</span><span class="category-spend">£' + spend.toFixed(2) + '</span>';
+          div.innerHTML = '<span class="category-name">' + cat + '</span><span class="category-spend">£' + Number(spendValue).toFixed(2) + '</span>';
           categoryBreakdown.appendChild(div);
         });
       }
