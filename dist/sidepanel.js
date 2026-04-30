@@ -277,26 +277,168 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Exclude
+  // Exclude - Enhanced with modal and copy functionality
   if (excludeBtn) {
     excludeBtn.addEventListener('click', function() {
-      excludeBtn.disabled = true;
+      // Check if scan results exist
+      var totalJunk = (scanResults.tier1 && scanResults.tier1.length || 0) + 
+                      (scanResults.tier2 && scanResults.tier2.length || 0);
       
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs[0] && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: 'performExclusion' }, function(response) {
-            if (chrome.runtime.lastError) {
-              console.error('[PMax] Exclude error:', chrome.runtime.lastError.message);
-              excludeBtn.disabled = false;
-              return;
-            }
-            excludeBtn.disabled = false;
-            if (response && response.success) {
-              if (statusEl) statusEl.textContent = 'Excluded ' + response.excludedCount;
-            }
-          });
-        }
-      });
+      if (totalJunk === 0) {
+        // Show toast for empty state
+        showToast('No junk placements found to exclude.');
+        return;
+      }
+      
+      // Collect all channel IDs from scan results
+      var exclusionList = [];
+      
+      // Add tier 1 (confirmed) channels
+      if (scanResults.tier1 && scanResults.tier1.length) {
+        scanResults.tier1.forEach(function(placement) {
+          if (placement.channel) {
+            exclusionList.push(placement.channel);
+          }
+        });
+      }
+      
+      // Add tier 2 (suspected) channels
+      if (scanResults.tier2 && scanResults.tier2.length) {
+        scanResults.tier2.forEach(function(placement) {
+          if (placement.channel) {
+            exclusionList.push(placement.channel);
+          }
+        });
+      }
+      
+      // Show exclusion modal
+      showExclusionModal(exclusionList);
+    });
+  }
+  
+  // Toast notification function
+  function showToast(message) {
+    // Remove existing toast
+    var existingToast = document.getElementById('pmax-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+    
+    var toast = document.createElement('div');
+    toast.id = 'pmax-toast';
+    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#374151;color:white;padding:12px 24px;border-radius:8px;font-size:13px;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:toastSlideUp 0.3s ease;';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(function() {
+      toast.style.animation = 'toastSlideDown 0.3s ease';
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
+  }
+  
+  // Exclusion Modal function
+  function showExclusionModal(channelList) {
+    // Remove existing modal
+    var existingModal = document.getElementById('pmax-exclusion-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Create modal overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'pmax-exclusion-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:modalFadeIn 0.2s ease;';
+    
+    // Create modal content
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:modalSlideUp 0.3s ease;';
+    
+    // Modal header
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;';
+    header.innerHTML = '<h3 style="margin:0;font-size:16px;font-weight:600;color:#111827;">🚫 Exclusion List (' + channelList.length + ' channels)</h3>' +
+                       '<button id="modal-close" style="background:none;border:none;cursor:pointer;font-size:20px;color:#6b7280;padding:4px;border-radius:4px;">&times;</button>';
+    
+    // Modal body
+    var body = document.createElement('div');
+    body.style.cssText = 'padding:20px 24px;flex:1;overflow:hidden;display:flex;flex-direction:column;';
+    
+    var textarea = document.createElement('textarea');
+    textarea.id = 'exclusion-textarea';
+    textarea.style.cssText = 'width:100%;flex:1;min-height:200px;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:12px;resize:none;white-space:pre;overflow:auto;';
+    textarea.value = channelList.join('\n');
+    
+    var infoText = document.createElement('div');
+    infoText.style.cssText = 'font-size:11px;color:#6b7280;margin-top:8px;';
+    infoText.innerHTML = '<span style="color:#ef4444;">●</span> Confirmed: ' + (scanResults.tier1 && scanResults.tier1.length || 0) + ' | <span style="color:#f59e0b;">●</span> Suspected: ' + (scanResults.tier2 && scanResults.tier2.length || 0);
+    
+    body.appendChild(textarea);
+    body.appendChild(infoText);
+    
+    // Modal footer
+    var footer = document.createElement('div');
+    footer.style.cssText = 'padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;gap:12px;justify-content:flex-end;';
+    
+    var copyBtn = document.createElement('button');
+    copyBtn.id = 'copy-exclusion-btn';
+    copyBtn.style.cssText = 'background:#1a73e8;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;';
+    copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>Copy to Clipboard';
+    
+    var closeBtn = document.createElement('button');
+    closeBtn.id = 'close-modal-btn';
+    closeBtn.style.cssText = 'background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;';
+    closeBtn.textContent = 'Close';
+    
+    footer.appendChild(copyBtn);
+    footer.appendChild(closeBtn);
+    
+    // Assemble modal
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Focus textarea and select all
+    textarea.focus();
+    textarea.select();
+    
+    // Event listeners
+    document.getElementById('modal-close').addEventListener('click', function() {
+      overlay.remove();
+    });
+    
+    document.getElementById('close-modal-btn').addEventListener('click', function() {
+      overlay.remove();
+    });
+    
+    copyBtn.addEventListener('click', function() {
+      textarea.select();
+      document.execCommand('copy');
+      
+      // Show copied feedback
+      copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!';
+      copyBtn.style.background = '#10b981';
+      
+      setTimeout(function() {
+        copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>Copy to Clipboard';
+        copyBtn.style.background = '#1a73e8';
+      }, 2000);
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', escapeHandler);
+      }
     });
   }
   

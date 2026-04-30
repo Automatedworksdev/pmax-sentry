@@ -890,3 +890,49 @@ body {
 .sync-complete {
   color: var(--success) !important;
 }
+
+/* Modal animations */
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toastSlideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes toastSlideDown {
+  from { transform: translateX(-50%) translateY(0); opacity: 1; }
+  to { transform: translateX(-50%) translateY(20px); opacity: 0; }
+}
+
+/* Modal dark mode support */
+@media (prefers-color-scheme: dark) {
+  #pmax-exclusion-modal > div {
+    background: var(--gray-800) !important;
+    border: 1px solid var(--gray-700);
+  }
+  
+  #pmax-exclusion-modal h3 {
+    color: var(--text-primary) !important;
+  }
+  
+  #pmax-exclusion-modal textarea {
+    background: var(--gray-900);
+    border-color: var(--gray-600);
+    color: var(--text-primary);
+  }
+  
+  #pmax-exclusion-modal button:last-child {
+    background: var(--gray-700);
+    border-color: var(--gray-600);
+    color: var(--text-primary);
+  }
+}
+
