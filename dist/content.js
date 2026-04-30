@@ -54,44 +54,53 @@
     'General': '#6b7280'
   };
   
-  // Initialize
+  // Initialize with retry
   async function initialize() {
     console.log('[PMax] Initializing content script...');
     
-    const result = await chrome.storage.local.get([
-      'licensed', 
-      'pmaxData', 
-      'suspectedKeywords'
-    ]);
-    
-    console.log('[PMax] Storage data:', {
-      licensed: result.licensed,
-      pmaxDataExists: !!result.pmaxData,
-      pmaxDataChannels: result.pmaxData?.channels?.length,
-      suspectedKeywords: result.suspectedKeywords?.length
-    });
-    
-    isLicensed = result.licensed === true;
-    
-    if (isLicensed && result.pmaxData) {
-      const data = result.pmaxData;
-      channelSet = new Set(data.channels || []);
+    // Try to load data multiple times
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await chrome.storage.local.get([
+        'licensed', 
+        'pmaxData', 
+        'suspectedKeywords'
+      ]);
       
-      // Build category map
-      if (data.categories) {
-        Object.entries(data.categories).forEach(([cat, channels]) => {
-          channels.forEach(ch => {
-            categoryMap[ch] = cat;
+      console.log('[PMax] Storage data (attempt ' + attempt + '):', {
+        licensed: result.licensed,
+        pmaxDataExists: !!result.pmaxData,
+        pmaxDataChannels: result.pmaxData?.channels?.length,
+        suspectedKeywords: result.suspectedKeywords?.length
+      });
+      
+      isLicensed = result.licensed === true;
+      
+      if (isLicensed && result.pmaxData && result.pmaxData.channels?.length > 0) {
+        const data = result.pmaxData;
+        channelSet = new Set(data.channels || []);
+        
+        // Build category map
+        if (data.categories) {
+          Object.entries(data.categories).forEach(([cat, channels]) => {
+            channels.forEach(ch => {
+              categoryMap[ch] = cat;
+            });
           });
-        });
+        }
+        
+        suspectedKeywords = result.suspectedKeywords || [];
+        dataLoaded = true;
+        
+        console.log(`[PMax] Loaded ${channelSet.size} channels, ${suspectedKeywords.length} keywords`);
+        break; // Success - exit retry loop
+      } else {
+        console.log('[PMax] No data yet - waiting...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
       }
-      
-      suspectedKeywords = result.suspectedKeywords || [];
-      dataLoaded = true;
-      
-      console.log(`[PMax] Loaded ${channelSet.size} channels, ${suspectedKeywords.length} keywords`);
-    } else {
-      console.log('[PMax] No data loaded - licensed:', isLicensed, 'pmaxData:', !!result.pmaxData);
+    }
+    
+    if (!dataLoaded) {
+      console.log('[PMax] Failed to load data after 3 attempts');
     }
     
     injectBadge();
@@ -387,6 +396,20 @@
       return true;
     }
     
+    if (request.action === 'reloadData') {
+      // Force reload data from storage
+      initialize().then(() => {
+        sendResponse({ 
+          success: true, 
+          dataLoaded, 
+          channelCount: channelSet.size 
+        });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+    
     if (request.action === 'ping') {
       sendResponse({ 
         pong: true, 
@@ -401,6 +424,7 @@
     // Unknown action
     sendResponse({ error: 'Unknown action' });
     return false;
+  });
   
   // Start
   initialize();

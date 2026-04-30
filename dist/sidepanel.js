@@ -235,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (scanBtn) {
     scanBtn.addEventListener('click', function() {
       scanBtn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Checking data...';
       
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (!tabs[0] || !tabs[0].id) {
@@ -243,36 +244,76 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
         
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, function(response) {
-          scanBtn.disabled = false;
-          scanBtn.textContent = 'Scan Placements';
-          
-          if (chrome.runtime.lastError) {
-            if (statusEl) statusEl.textContent = 'Error: ' + chrome.runtime.lastError.message;
-            return;
-          }
-          
-          if (!response) {
+        // First check if content script has data
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' }, function(pingResponse) {
+          if (chrome.runtime.lastError || !pingResponse) {
+            scanBtn.disabled = false;
+            scanBtn.textContent = 'Scan Placements';
             if (statusEl) statusEl.textContent = 'Error: Refresh page first';
             return;
           }
           
-          if (response.error) {
-            if (statusEl) statusEl.textContent = response.error;
+          console.log('[PMax] Ping response:', pingResponse);
+          
+          if (!pingResponse.dataLoaded || pingResponse.channelCount === 0) {
+            if (statusEl) statusEl.textContent = 'Loading data...';
+            
+            chrome.tabs.sendMessage(tabs[0].id, { action: 'reloadData' }, function(reloadResponse) {
+              if (chrome.runtime.lastError || !reloadResponse || !reloadResponse.success) {
+                scanBtn.disabled = false;
+                scanBtn.textContent = 'Scan Placements';
+                if (statusEl) statusEl.textContent = 'Data not loaded. Click Sync button.';
+                return;
+              }
+              
+              if (reloadResponse.dataLoaded && reloadResponse.channelCount > 0) {
+                performScan();
+              } else {
+                scanBtn.disabled = false;
+                scanBtn.textContent = 'Scan Placements';
+                if (statusEl) statusEl.textContent = 'Data not loaded. Click Sync button.';
+              }
+            });
             return;
           }
           
-          if (response.needsLicense) {
-            showLicenseView();
-            return;
-          }
-          
-          scanResults = response;
-          updateDisplay();
-          
-          var total = (response.counts && response.counts.tier1 || 0) + (response.counts && response.counts.tier2 || 0);
-          if (statusEl) statusEl.textContent = total > 0 ? 'Found ' + total + ' placements' : 'No waste found';
+          performScan();
         });
+        
+        function performScan() {
+          if (statusEl) statusEl.textContent = 'Scanning...';
+          
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, function(response) {
+            scanBtn.disabled = false;
+            scanBtn.textContent = 'Scan Placements';
+            
+            if (chrome.runtime.lastError) {
+              if (statusEl) statusEl.textContent = 'Error: ' + chrome.runtime.lastError.message;
+              return;
+            }
+            
+            if (!response) {
+              if (statusEl) statusEl.textContent = 'Error: No response from page';
+              return;
+            }
+            
+            if (response.error) {
+              if (statusEl) statusEl.textContent = response.error;
+              return;
+            }
+            
+            if (response.needsLicense) {
+              showLicenseView();
+              return;
+            }
+            
+            scanResults = response;
+            updateDisplay();
+            
+            var total = (response.counts && response.counts.tier1 || 0) + (response.counts && response.counts.tier2 || 0);
+            if (statusEl) statusEl.textContent = total > 0 ? 'Found ' + total + ' placements' : 'No waste found';
+          });
+        }
       });
     });
   }
