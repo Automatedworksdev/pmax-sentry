@@ -286,7 +286,11 @@ async function getStats() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'validateLicense') {
-    validateLicense(request.key).then(sendResponse);
+    validateLicense(request.key).then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({ valid: false, error: err.message });
+    });
     return true;
   }
   
@@ -297,23 +301,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         key: data.licenseKey,
         info: data.licenseInfo
       });
+    }).catch(err => {
+      sendResponse({ valid: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'forceRefresh') {
-    forceRefresh().then(sendResponse);
+    forceRefresh().then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
+    });
     return true;
   }
   
   if (request.action === 'getStats') {
-    getStats().then(sendResponse);
+    getStats().then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({ channelCount: 0, version: DATA_VERSION, syncedAt: null, error: err.message });
+    });
     return true;
   }
   
   if (request.action === 'getSyncStatus') {
     chrome.storage.local.get(['syncStatus', 'syncProgress', 'lastSyncAt']).then(data => {
       sendResponse(data);
+    }).catch(err => {
+      sendResponse({ syncStatus: 'error', error: err.message });
     });
     return true;
   }
@@ -327,9 +343,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // Sidepanel might not be open, ignore
     });
     sendResponse({ received: true });
-    return true;
+    return false; // Synchronous response
   }
   
+  // Unknown action - send empty response
+  sendResponse({ error: 'Unknown action' });
   return false;
 });
 

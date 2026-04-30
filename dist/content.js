@@ -372,8 +372,12 @@
     }
     
     if (request.action === 'performExclusion') {
-      const result = performExclusion();
-      sendResponse(result);
+      try {
+        const result = performExclusion();
+        sendResponse(result);
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
       return true;
     }
     
@@ -394,8 +398,9 @@
       return true;
     }
     
-    return true;
-  });
+    // Unknown action
+    sendResponse({ error: 'Unknown action' });
+    return false;
   
   // Start
   initialize();
