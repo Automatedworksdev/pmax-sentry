@@ -535,4 +535,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return true;
   });
+  
+  // Debug: Ensure buttons are enabled
+  console.log('[PMax] Initializing buttons...');
+  console.log('[PMax] excludeBtn found:', !!excludeBtn, 'disabled:', excludeBtn ? excludeBtn.disabled : 'N/A');
+  console.log('[PMax] saveBtn found:', !!saveBtn, 'disabled:', saveBtn ? saveBtn.disabled : 'N/A');
+  
+  // Force enable buttons
+  if (excludeBtn) {
+    excludeBtn.disabled = false;
+    console.log('[PMax] Exclude All button enabled');
+  }
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    console.log('[PMax] Save Report button enabled');
+  }
 });
