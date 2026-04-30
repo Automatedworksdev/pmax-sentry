@@ -49,7 +49,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Check license status
+  // Safe tab message sender with timeout and error handling
+  function sendTabMessage(tabId, message, callback) {
+    if (!chrome.runtime || !chrome.runtime.id) {
+      console.error('[PMax] Extension context invalid');
+      if (callback) callback(null);
+      return;
+    }
+    
+    var timeoutId = setTimeout(function() {
+      console.warn('[PMax] Tab message timeout');
+      if (callback) callback({ error: 'Message timeout' });
+      callback = null; // Prevent double callback
+    }, 5000); // 5 second timeout
+    
+    try {
+      chrome.tabs.sendMessage(tabId, message, function(response) {
+        clearTimeout(timeoutId);
+        if (chrome.runtime.lastError) {
+          console.error('[PMax] Tab message error:', chrome.runtime.lastError.message);
+          if (callback) callback({ error: chrome.runtime.lastError.message });
+          return;
+        }
+        if (callback) callback(response);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.error('[PMax] Send tab message failed:', e);
+      if (callback) callback({ error: e.message });
+    }
+  }
   checkLicenseStatus();
   
   function checkLicenseStatus() {
@@ -244,12 +273,14 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
         
+        var tabId = tabs[0].id;
+        
         // First check if content script has data
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' }, function(pingResponse) {
-          if (chrome.runtime.lastError || !pingResponse) {
+        sendTabMessage(tabId, { action: 'ping' }, function(pingResponse) {
+          if (!pingResponse || pingResponse.error) {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Placements';
-            if (statusEl) statusEl.textContent = 'Error: Refresh page first';
+            if (statusEl) statusEl.textContent = 'Error: ' + (pingResponse ? pingResponse.error : 'No response');
             return;
           }
           
@@ -258,8 +289,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!pingResponse.dataLoaded || pingResponse.channelCount === 0) {
             if (statusEl) statusEl.textContent = 'Loading data...';
             
-            chrome.tabs.sendMessage(tabs[0].id, { action: 'reloadData' }, function(reloadResponse) {
-              if (chrome.runtime.lastError || !reloadResponse || !reloadResponse.success) {
+            sendTabMessage(tabId, { action: 'reloadData' }, function(reloadResponse) {
+              if (!reloadResponse || reloadResponse.error || !reloadResponse.success) {
                 scanBtn.disabled = false;
                 scanBtn.textContent = 'Scan Placements';
                 if (statusEl) statusEl.textContent = 'Data not loaded. Click Sync button.';
@@ -283,22 +314,12 @@ document.addEventListener('DOMContentLoaded', function() {
         function performScan() {
           if (statusEl) statusEl.textContent = 'Scanning...';
           
-          chrome.tabs.sendMessage(tabs[0].id, { action: 'scanPlacements' }, function(response) {
+          sendTabMessage(tabId, { action: 'scanPlacements' }, function(response) {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Placements';
             
-            if (chrome.runtime.lastError) {
-              if (statusEl) statusEl.textContent = 'Error: ' + chrome.runtime.lastError.message;
-              return;
-            }
-            
-            if (!response) {
-              if (statusEl) statusEl.textContent = 'Error: No response from page';
-              return;
-            }
-            
-            if (response.error) {
-              if (statusEl) statusEl.textContent = response.error;
+            if (!response || response.error) {
+              if (statusEl) statusEl.textContent = 'Error: ' + (response ? response.error : 'No response');
               return;
             }
             

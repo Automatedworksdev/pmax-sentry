@@ -387,13 +387,13 @@
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
-      return true;
+      return false; // Synchronous
     }
     
     if (request.action === 'toggleSuspected') {
       highlightSuspected = request.enabled;
       sendResponse({ success: true });
-      return true;
+      return false; // Synchronous
     }
     
     if (request.action === 'reloadData') {
@@ -407,7 +407,7 @@
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
       });
-      return true;
+      return true; // Asynchronous
     }
     
     if (request.action === 'ping') {
@@ -418,7 +418,7 @@
         channelCount: channelSet.size,
         keywordCount: suspectedKeywords.length
       });
-      return true;
+      return false; // Synchronous
     }
     
     // Unknown action
