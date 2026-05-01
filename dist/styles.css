@@ -163,7 +163,7 @@ body {
 
 /* Logo Section */
 .license-view .logo-cropper {
-  height: 60px;
+  height: 45px;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -172,11 +172,12 @@ body {
 }
 
 .license-view .logo {
-  width: 70px;
+  width: 90px;
   height: auto;
   background: transparent;
   box-shadow: none;
   border: none;
+  margin-top: -5px;
 }
 
 /* Brand Title */
@@ -446,7 +447,7 @@ body {
 }
 
 .logo-cropper {
-  height: 60px;
+  height: 45px;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -455,12 +456,13 @@ body {
 }
 
 .header-logo {
-  width: 70px;
+  width: 90px;
   height: auto;
   display: block;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
+  margin-top: -5px;
 }
 
 .header-title {
