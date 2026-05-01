@@ -162,12 +162,18 @@ body {
 }
 
 /* Logo Section */
+.license-view .logo-cropper {
+  height: 60px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0 auto var(--space-2) auto;
+}
+
 .license-view .logo {
-  width: 80px;
-  height: 80px;
-  margin-bottom: var(--space-4);
-  object-fit: cover;
-  object-position: top;
+  width: 70px;
+  height: auto;
   background: transparent;
   box-shadow: none;
   border: none;
@@ -175,20 +181,20 @@ body {
 
 /* Brand Title */
 .license-view h1 {
-  font-size: 28px;
-  font-weight: 900;
+  font-size: 20px;
+  font-weight: 800;
   color: #000000;
-  margin-bottom: var(--space-2);
+  margin-bottom: 4px;
   letter-spacing: -0.025em;
 }
 
 .license-view .subtitle {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: #8c8c8c;
   margin-bottom: var(--space-8);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 2px;
 }
 
 /* Activation Card */
@@ -430,40 +436,38 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin: 20px 0 30px 0;
+  margin: 0 0 30px 0;
   width: 100%;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
   border-radius: 0 !important;
-  padding: 0 !important;
+  padding: 40px 0 0 0 !important;
+}
+
+.logo-cropper {
+  height: 60px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0 auto 10px auto;
 }
 
 .header-logo {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: auto;
   display: block;
-  margin-top: 20px;
-  margin-bottom: 10px;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  object-fit: cover;
-  object-position: top;
-}
-
-@media (prefers-color-scheme: dark) {
-  .header-logo {
-    object-fit: cover;
-    object-position: top;
-  }
 }
 
 .header-title {
-  font-size: 26px;
-  font-weight: 900;
+  font-size: 20px;
+  font-weight: 800;
   color: #000000;
-  margin: 15px 0 0 0;
+  margin: 0 0 4px 0;
   letter-spacing: -0.02em;
 }
 
@@ -477,7 +481,7 @@ body {
   font-size: 11px;
   font-weight: 500;
   color: #8c8c8c;
-  margin: 8px 0 0 0;
+  margin: 0 0 8px 0;
   letter-spacing: 2px;
   text-transform: uppercase;
 }
