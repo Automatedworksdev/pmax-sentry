@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var validateBtn = document.getElementById('validate-license-btn');
   var licenseStatus = document.getElementById('license-status');
   var scanBtn = document.getElementById('scan-btn');
-  var excludeBtn = document.getElementById('exclude-btn');
+  var excludeSelectedBtn = document.getElementById('exclude-selected-btn');
+  var reportSelectedBtn = document.getElementById('report-selected-btn');
   var saveBtn = document.getElementById('save-btn');
   var statusEl = document.getElementById('status');
   var tier1List = document.getElementById('tier1-list');
@@ -353,42 +354,64 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Exclude - Enhanced with modal and copy functionality
-  if (excludeBtn) {
-    excludeBtn.addEventListener('click', function() {
-      // Check if scan results exist
-      var totalJunk = (scanResults.tier1 && scanResults.tier1.length || 0) + 
-                      (scanResults.tier2 && scanResults.tier2.length || 0);
+  // Exclude Selected - Only exclude checked items
+  if (excludeSelectedBtn) {
+    excludeSelectedBtn.addEventListener('click', function() {
+      var selectedChannels = [];
       
-      if (totalJunk === 0) {
-        // Show toast for empty state
-        showToast('No junk placements found to exclude.');
+      // Get all checked items from both lists
+      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item) selectedChannels.push(item.dataset.channel);
+      });
+      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item) selectedChannels.push(item.dataset.channel);
+      });
+      
+      if (selectedChannels.length === 0) {
+        showToast('No channels selected to exclude.');
         return;
       }
       
-      // Collect all channel IDs from scan results
-      var exclusionList = [];
+      // Show exclusion modal with selected channels
+      showExclusionModal(selectedChannels);
+    });
+  }
+  
+  // Report Selected - Report all checked items
+  if (reportSelectedBtn) {
+    reportSelectedBtn.addEventListener('click', function() {
+      var selectedCount = 0;
       
-      // Add tier 1 (confirmed) channels
-      if (scanResults.tier1 && scanResults.tier1.length) {
-        scanResults.tier1.forEach(function(placement) {
-          if (placement.channel) {
-            exclusionList.push(placement.channel);
-          }
-        });
+      // Get all checked items from both lists
+      selectedCount += document.querySelectorAll('#tier1-list .placement-checkbox:checked').length;
+      selectedCount += document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
+      
+      if (selectedCount === 0) {
+        showToast('No channels selected to report.');
+        return;
       }
       
-      // Add tier 2 (suspected) channels
-      if (scanResults.tier2 && scanResults.tier2.length) {
-        scanResults.tier2.forEach(function(placement) {
-          if (placement.channel) {
-            exclusionList.push(placement.channel);
-          }
-        });
-      }
+      // Mark all selected items as reported
+      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        var flagBtn = item ? item.querySelector('.report-flag') : null;
+        if (flagBtn) {
+          flagBtn.classList.add('reported');
+          flagBtn.title = 'Channel reported';
+        }
+      });
+      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        var flagBtn = item ? item.querySelector('.report-flag') : null;
+        if (flagBtn) {
+          flagBtn.classList.add('reported');
+          flagBtn.title = 'Channel reported';
+        }
+      });
       
-      // Show exclusion modal
-      showExclusionModal(exclusionList);
+      showToast(selectedCount + ' channel(s) reported to Sentry Engine.');
     });
   }
   
@@ -629,11 +652,14 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    excludeBtn.disabled = false;  // Always enable - will show toast if no results
-    saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
+    // Reset button states - disabled until items are selected
+    if (excludeSelectedBtn) excludeSelectedBtn.disabled = true;
+    if (reportSelectedBtn) reportSelectedBtn.disabled = true;
+    if (saveBtn) saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
     
     // Re-attach select all listeners after lists are populated
     attachSelectAllListeners();
+    updateSelectedCount(); // Update button states based on selection
   }
   
   // Listen for sync completion messages from background
@@ -712,12 +738,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var tier2Checked = document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
     var totalChecked = tier1Checked + tier2Checked;
     
-    if (excludeBtn) {
-      if (totalChecked > 0) {
-        excludeBtn.textContent = 'Exclude Selected (' + totalChecked + ')';
-      } else {
-        excludeBtn.textContent = 'Exclude All';
-      }
+    // Update button states
+    if (excludeSelectedBtn) {
+      excludeSelectedBtn.disabled = totalChecked === 0;
+      excludeSelectedBtn.textContent = totalChecked > 0 ? 'Exclude Selected (' + totalChecked + ')' : 'Exclude Selected';
+    }
+    if (reportSelectedBtn) {
+      reportSelectedBtn.disabled = totalChecked === 0;
+      reportSelectedBtn.textContent = totalChecked > 0 ? 'Report Selected (' + totalChecked + ')' : 'Report Selected';
     }
   }
   
@@ -726,16 +754,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');
-  console.log('[PMax] excludeBtn found:', !!excludeBtn, 'disabled:', excludeBtn ? excludeBtn.disabled : 'N/A');
+  console.log('[PMax] excludeSelectedBtn found:', !!excludeSelectedBtn, 'disabled:', excludeSelectedBtn ? excludeSelectedBtn.disabled : 'N/A');
+  console.log('[PMax] reportSelectedBtn found:', !!reportSelectedBtn, 'disabled:', reportSelectedBtn ? reportSelectedBtn.disabled : 'N/A');
   console.log('[PMax] saveBtn found:', !!saveBtn, 'disabled:', saveBtn ? saveBtn.disabled : 'N/A');
-  
-  // Force enable buttons
-  if (excludeBtn) {
-    excludeBtn.disabled = false;
-    console.log('[PMax] Exclude All button enabled');
-  }
-  if (saveBtn) {
-    saveBtn.disabled = false;
-    console.log('[PMax] Save Report button enabled');
-  }
 });
