@@ -551,10 +551,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tier1List) {
       tier1List.innerHTML = '';
       if (scanResults.tier1 && scanResults.tier1.length) {
-        scanResults.tier1.forEach(function(p) {
+        scanResults.tier1.forEach(function(p, index) {
           var li = document.createElement('li');
+          li.className = 'placement-item';
+          li.dataset.channel = p.channel;
           var spendValue = Number(p.spend || 0).toFixed(2);
-          li.innerHTML = '<span>' + p.channel + '</span><span>£' + spendValue + '</span>';
+          li.innerHTML = 
+            '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
+            '<div class="placement-info">' +
+              '<span class="placement-channel">' + p.channel + '</span>' +
+              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
+            '</div>' +
+            '<span class="placement-spend">£' + spendValue + '</span>' +
+            '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+          
+          // Add report flag click handler
+          var flagBtn = li.querySelector('.report-flag');
+          flagBtn.addEventListener('click', function() {
+            flagBtn.classList.add('reported');
+            flagBtn.title = 'Channel reported';
+            showToast('Channel reported to Sentry Engine.', 'success');
+          });
+          
           tier1List.appendChild(li);
         });
       } else {
@@ -565,10 +583,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tier2List) {
       tier2List.innerHTML = '';
       if (scanResults.tier2 && scanResults.tier2.length) {
-        scanResults.tier2.forEach(function(p) {
+        scanResults.tier2.forEach(function(p, index) {
           var li = document.createElement('li');
+          li.className = 'placement-item';
+          li.dataset.channel = p.channel;
           var spendValue = Number(p.spend || 0).toFixed(2);
-          li.innerHTML = '<span>' + p.channel + '</span><span>£' + spendValue + '</span>';
+          li.innerHTML = 
+            '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
+            '<div class="placement-info">' +
+              '<span class="placement-channel">' + p.channel + '</span>' +
+              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
+            '</div>' +
+            '<span class="placement-spend">£' + spendValue + '</span>' +
+            '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+          
+          // Add report flag click handler
+          var flagBtn = li.querySelector('.report-flag');
+          flagBtn.addEventListener('click', function() {
+            flagBtn.classList.add('reported');
+            flagBtn.title = 'Channel reported';
+            showToast('Channel reported to Sentry Engine.', 'success');
+          });
+          
           tier2List.appendChild(li);
         });
       } else {
@@ -614,6 +650,60 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return true;
   });
+  
+  // Select All functionality
+  var selectAllTier1 = document.getElementById('select-all-tier1');
+  var selectAllTier2 = document.getElementById('select-all-tier2');
+  
+  if (selectAllTier1) {
+    selectAllTier1.addEventListener('change', function() {
+      var checkboxes = tier1List.querySelectorAll('.placement-checkbox');
+      checkboxes.forEach(function(cb) {
+        cb.checked = selectAllTier1.checked;
+      });
+      updateSelectedCount();
+    });
+  }
+  
+  if (selectAllTier2) {
+    selectAllTier2.addEventListener('change', function() {
+      var checkboxes = tier2List.querySelectorAll('.placement-checkbox');
+      checkboxes.forEach(function(cb) {
+        cb.checked = selectAllTier2.checked;
+      });
+      updateSelectedCount();
+    });
+  }
+  
+  function updateSelectedCount() {
+    var tier1Checked = tier1List ? tier1List.querySelectorAll('.placement-checkbox:checked').length : 0;
+    var tier2Checked = tier2List ? tier2List.querySelectorAll('.placement-checkbox:checked').length : 0;
+    var totalChecked = tier1Checked + tier2Checked;
+    
+    if (totalChecked > 0) {
+      excludeBtn.textContent = 'Exclude Selected (' + totalChecked + ')';
+    } else {
+      excludeBtn.textContent = 'Exclude All';
+    }
+  }
+  
+  // Toast notification function
+  function showToast(message, type) {
+    var toast = document.createElement('div');
+    toast.className = 'toast-notification' + (type ? ' ' + type : '');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(function() {
+      toast.classList.add('hide');
+      setTimeout(function() {
+        toast.remove();
+      }, 300);
+    }, 3000);
+  }
+  
+  // Make showToast globally accessible
+  window.showToast = showToast;
   
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');
