@@ -407,13 +407,13 @@ body {
   }
 }
 
-/* Premium Header - Hard Reset */
+/* Premium Header - Clean White */
 .premium-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   padding: var(--space-4);
-  background: #ffffff !important;
+  background: transparent !important;
   position: relative;
   box-shadow: none !important;
   border: none !important;
@@ -422,7 +422,7 @@ body {
 
 @media (prefers-color-scheme: dark) {
   .premium-header {
-    background: #ffffff !important;
+    background: transparent !important;
   }
 }
 
@@ -449,26 +449,26 @@ body {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
+  filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
 }
 
 @media (prefers-color-scheme: dark) {
   .header-logo {
-    mix-blend-mode: multiply;
-    filter: none;
+    filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
   }
 }
 
 .header-title {
   font-size: 26px;
   font-weight: 800;
-  color: #001529;
+  color: #000000;
   margin: 15px 0 0 0;
   letter-spacing: -0.02em;
 }
 
 @media (prefers-color-scheme: dark) {
   .header-title {
-    color: #e8f0fe;
+    color: #000000;
   }
 }
 
@@ -484,13 +484,13 @@ body {
 .header-tagline {
   font-size: 14px;
   font-weight: 600;
-  color: var(--primary);
+  color: #1a73e8;
   margin: 10px 0 0 0;
   text-align: center;
 }
 
 .header-tagline .count {
-  color: var(--primary);
+  color: #1a73e8;
   font-weight: 700;
 }
 
