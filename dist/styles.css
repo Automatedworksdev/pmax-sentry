@@ -449,10 +449,6 @@ body {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  border-radius: 50%;
-  mix-blend-mode: multiply;
-  filter: contrast(1.1) brightness(1.05);
-  overflow: hidden;
 }
 
 @media (prefers-color-scheme: dark) {
