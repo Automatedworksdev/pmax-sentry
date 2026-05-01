@@ -631,6 +631,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     excludeBtn.disabled = false;  // Always enable - will show toast if no results
     saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
+    
+    // Re-attach select all listeners after lists are populated
+    attachSelectAllListeners();
   }
   
   // Listen for sync completion messages from background
@@ -651,42 +654,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return true;
   });
   
-  // Select All functionality
-  var selectAllTier1 = document.getElementById('select-all-tier1');
-  var selectAllTier2 = document.getElementById('select-all-tier2');
-  
-  if (selectAllTier1) {
-    selectAllTier1.addEventListener('change', function() {
-      var checkboxes = tier1List.querySelectorAll('.placement-checkbox');
-      checkboxes.forEach(function(cb) {
-        cb.checked = selectAllTier1.checked;
-      });
-      updateSelectedCount();
-    });
-  }
-  
-  if (selectAllTier2) {
-    selectAllTier2.addEventListener('change', function() {
-      var checkboxes = tier2List.querySelectorAll('.placement-checkbox');
-      checkboxes.forEach(function(cb) {
-        cb.checked = selectAllTier2.checked;
-      });
-      updateSelectedCount();
-    });
-  }
-  
-  function updateSelectedCount() {
-    var tier1Checked = tier1List ? tier1List.querySelectorAll('.placement-checkbox:checked').length : 0;
-    var tier2Checked = tier2List ? tier2List.querySelectorAll('.placement-checkbox:checked').length : 0;
-    var totalChecked = tier1Checked + tier2Checked;
-    
-    if (totalChecked > 0) {
-      excludeBtn.textContent = 'Exclude Selected (' + totalChecked + ')';
-    } else {
-      excludeBtn.textContent = 'Exclude All';
-    }
-  }
-  
   // Toast notification function
   function showToast(message, type) {
     var toast = document.createElement('div');
@@ -697,13 +664,65 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
       toast.classList.add('hide');
       setTimeout(function() {
-        toast.remove();
+        if (toast.parentNode) toast.remove();
       }, 300);
     }, 3000);
   }
   
   // Make showToast globally accessible
   window.showToast = showToast;
+  
+  // Select All functionality - attach after DOM is ready
+  function attachSelectAllListeners() {
+    var selectAllTier1 = document.getElementById('select-all-tier1');
+    var selectAllTier2 = document.getElementById('select-all-tier2');
+    
+    if (selectAllTier1) {
+      // Remove existing listener to prevent duplicates
+      selectAllTier1.removeEventListener('change', handleTier1SelectAll);
+      selectAllTier1.addEventListener('change', handleTier1SelectAll);
+    }
+    
+    if (selectAllTier2) {
+      selectAllTier2.removeEventListener('change', handleTier2SelectAll);
+      selectAllTier2.addEventListener('change', handleTier2SelectAll);
+    }
+  }
+  
+  function handleTier1SelectAll() {
+    var selectAllTier1 = document.getElementById('select-all-tier1');
+    var checkboxes = document.querySelectorAll('#tier1-list .placement-checkbox');
+    checkboxes.forEach(function(cb) {
+      cb.checked = selectAllTier1.checked;
+    });
+    updateSelectedCount();
+  }
+  
+  function handleTier2SelectAll() {
+    var selectAllTier2 = document.getElementById('select-all-tier2');
+    var checkboxes = document.querySelectorAll('#tier2-list .placement-checkbox');
+    checkboxes.forEach(function(cb) {
+      cb.checked = selectAllTier2.checked;
+    });
+    updateSelectedCount();
+  }
+  
+  function updateSelectedCount() {
+    var tier1Checked = document.querySelectorAll('#tier1-list .placement-checkbox:checked').length;
+    var tier2Checked = document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
+    var totalChecked = tier1Checked + tier2Checked;
+    
+    if (excludeBtn) {
+      if (totalChecked > 0) {
+        excludeBtn.textContent = 'Exclude Selected (' + totalChecked + ')';
+      } else {
+        excludeBtn.textContent = 'Exclude All';
+      }
+    }
+  }
+  
+  // Attach listeners on load
+  attachSelectAllListeners();
   
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');
