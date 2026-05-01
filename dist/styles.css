@@ -163,12 +163,12 @@ body {
 
 /* Logo Section */
 .license-view .logo {
-  width: 220px !important;
-  height: 110px !important;
+  width: 180px !important;
+  height: 100px !important;
   background: transparent;
   box-shadow: none;
   border: none;
-  margin: 30px auto -20px auto !important;
+  margin: 30px auto -25px auto !important;
   display: block;
   object-fit: fill;
 }
@@ -444,13 +444,13 @@ body {
 }
 
 .header-logo {
-  width: 220px !important;
-  height: 110px !important;
+  width: 180px !important;
+  height: 100px !important;
   display: block;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  margin: 30px auto -20px auto !important;
+  margin: 30px auto -25px auto !important;
   padding: 0;
   object-fit: fill;
 }
