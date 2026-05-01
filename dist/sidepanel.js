@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           }
           
-          // Update dynamic tagline
+          // Update dynamic tagline with version and count
           var taglineEl = document.getElementById('header-tagline');
           if (taglineEl && stats.channelCount > 0) {
             taglineEl.innerHTML = '<span class="count">' + stats.channelCount.toLocaleString() + '</span> junk channels blocked';
