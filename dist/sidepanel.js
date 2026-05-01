@@ -31,6 +31,96 @@ document.addEventListener('DOMContentLoaded', function() {
   
   var scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 }, categoryTotals: {} };
   
+  // ============================================
+  // LOCAL SENTRY ENGINE - Global Block List
+  // ============================================
+  var globallyBlocked = {}; // In-memory cache
+  
+  // Load globally blocked channels from storage
+  function loadGloballyBlocked(callback) {
+    chrome.storage.local.get(['globallyBlocked'], function(result) {
+      if (result.globallyBlocked) {
+        globallyBlocked = result.globallyBlocked;
+        console.log('[Sentry] Loaded', Object.keys(globallyBlocked).length, 'blocked channels');
+      }
+      if (callback) callback();
+    });
+  }
+  
+  // Save globally blocked channels to storage
+  function saveGloballyBlocked(callback) {
+    chrome.storage.local.set({ globallyBlocked: globallyBlocked }, function() {
+      console.log('[Sentry] Saved', Object.keys(globallyBlocked).length, 'blocked channels');
+      if (callback) callback();
+    });
+  }
+  
+  // Report/Block a channel with upsert logic
+  function reportChannel(channelId, channelName, channelData) {
+    if (!channelId) return;
+    
+    var now = Date.now();
+    var existing = globallyBlocked[channelId];
+    
+    if (existing) {
+      // Upsert: increment report count
+      existing.reportCount = (existing.reportCount || 1) + 1;
+      existing.lastReported = now;
+      existing.name = channelName || existing.name; // Update name if provided
+      console.log('[Sentry] Incremented report count for', channelId, 'to', existing.reportCount);
+    } else {
+      // New entry
+      globallyBlocked[channelId] = {
+        id: channelId,
+        name: channelName || channelId,
+        firstReported: now,
+        lastReported: now,
+        reportCount: 1,
+        data: channelData || {}
+      };
+      console.log('[Sentry] Added new channel to block list:', channelId);
+    }
+    
+    // Save to storage
+    saveGloballyBlocked();
+    return globallyBlocked[channelId];
+  }
+  
+  // Check if channel is blocked
+  function isChannelBlocked(channelId) {
+    return !!globallyBlocked[channelId];
+  }
+  
+  // Filter out blocked channels from scan results
+  function filterBlockedChannels(results) {
+    if (!results) return results;
+    
+    var filtered = { ...results };
+    if (filtered.tier1) {
+      filtered.tier1 = filtered.tier1.filter(function(p) {
+        return !isChannelBlocked(p.channel);
+      });
+    }
+    if (filtered.tier2) {
+      filtered.tier2 = filtered.tier2.filter(function(p) {
+        return !isChannelBlocked(p.channel);
+      });
+    }
+    return filtered;
+  }
+  
+  // Export Sentry Data (for admin collection)
+  function exportSentryData() {
+    return JSON.stringify(globallyBlocked, null, 2);
+  }
+  
+  // Make available globally for console access
+  window.exportSentryData = exportSentryData;
+  window.globallyBlocked = globallyBlocked;
+  
+  // Load blocked channels on startup
+  loadGloballyBlocked();
+  
   // Safe message sender
   function sendMessage(message, callback) {
     if (!chrome.runtime || !chrome.runtime.id) {
@@ -343,10 +433,11 @@ document.addEventListener('DOMContentLoaded', function() {
               return;
             }
             
-            scanResults = response;
+            // Filter out already blocked channels before storing
+            scanResults = filterBlockedChannels(response);
             updateDisplay();
             
-            var total = (response.counts && response.counts.tier1 || 0) + (response.counts && response.counts.tier2 || 0);
+            var total = (scanResults.counts && scanResults.counts.tier1 || 0) + (scanResults.counts && scanResults.counts.tier2 || 0);
             if (statusEl) statusEl.textContent = total > 0 ? 'Found ' + total + ' placements' : 'No waste found';
           });
         }
@@ -358,15 +449,22 @@ document.addEventListener('DOMContentLoaded', function() {
   if (excludeSelectedBtn) {
     excludeSelectedBtn.addEventListener('click', function() {
       var selectedChannels = [];
+      var selectedItems = [];
       
       // Get all checked items from both lists
       document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
-        if (item) selectedChannels.push(item.dataset.channel);
+        if (item) {
+          selectedChannels.push(item.dataset.channel);
+          selectedItems.push({ channel: item.dataset.channel, tier: 'tier1' });
+        }
       });
       document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
-        if (item) selectedChannels.push(item.dataset.channel);
+        if (item) {
+          selectedChannels.push(item.dataset.channel);
+          selectedItems.push({ channel: item.dataset.channel, tier: 'tier2' });
+        }
       });
       
       if (selectedChannels.length === 0) {
@@ -374,44 +472,51 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // Show exclusion modal with selected channels
-      showExclusionModal(selectedChannels);
+      // Block all selected channels
+      selectedItems.forEach(function(item) {
+        reportChannel(item.channel, item.channel, { tier: item.tier });
+      });
+      
+      // Refresh display to show captured state
+      updateDisplay();
+      
+      showToast(selectedChannels.length + ' channel(s) added to Sentry Block List.');
     });
   }
   
   // Report Selected - Report all checked items
   if (reportSelectedBtn) {
     reportSelectedBtn.addEventListener('click', function() {
-      var selectedCount = 0;
+      var selectedItems = [];
       
       // Get all checked items from both lists
-      selectedCount += document.querySelectorAll('#tier1-list .placement-checkbox:checked').length;
-      selectedCount += document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
-      
-      if (selectedCount === 0) {
-        showToast('No channels selected to report.');
-        return;
-      }
-      
-      // Mark all selected items as reported
       document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
-        var flagBtn = item ? item.querySelector('.report-flag') : null;
-        if (flagBtn) {
-          flagBtn.classList.add('reported');
-          flagBtn.title = 'Channel reported';
+        if (item) {
+          selectedItems.push({ channel: item.dataset.channel, tier: 'tier1' });
         }
       });
       document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
-        var flagBtn = item ? item.querySelector('.report-flag') : null;
-        if (flagBtn) {
-          flagBtn.classList.add('reported');
-          flagBtn.title = 'Channel reported';
+        if (item) {
+          selectedItems.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
       
-      showToast(selectedCount + ' channel(s) reported to Sentry Engine.');
+      if (selectedItems.length === 0) {
+        showToast('No channels selected to report.');
+        return;
+      }
+      
+      // Report all selected channels (upsert logic)
+      selectedItems.forEach(function(item) {
+        reportChannel(item.channel, item.channel, { tier: item.tier });
+      });
+      
+      // Refresh display to show captured state
+      updateDisplay();
+      
+      showToast(selectedItems.length + ' channel(s) reported to Sentry Engine.');
     });
   }
   
@@ -578,23 +683,46 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
-          var spendValue = Number(p.spend || 0).toFixed(2);
-          li.innerHTML = 
-            '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
-            '<div class="placement-info">' +
-              '<span class="placement-channel">' + p.channel + '</span>' +
-              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
-            '</div>' +
-            '<span class="placement-spend">£' + spendValue + '</span>' +
-            '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
           
-          // Add report flag click handler
-          var flagBtn = li.querySelector('.report-flag');
-          flagBtn.addEventListener('click', function() {
-            flagBtn.classList.add('reported');
-            flagBtn.title = 'Channel reported';
-            showToast('Channel reported to Sentry Engine.', 'success');
-          });
+          // Check if already blocked
+          var isBlocked = isChannelBlocked(p.channel);
+          var blockedData = globallyBlocked[p.channel];
+          
+          var spendValue = Number(p.spend || 0).toFixed(2);
+          
+          if (isBlocked) {
+            // Show as captured/blocked
+            li.classList.add('sentry-captured');
+            li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" disabled>' +
+              '<div class="placement-info">' +
+                '<span class="placement-channel">' + p.channel + '</span>' +
+                '<span class="placement-category">Blocked • Reported ' + (blockedData.reportCount || 1) + ' times</span>' +
+              '</div>' +
+              '<span class="placement-spend">£' + spendValue + '</span>' +
+              '<span class="sentry-badge blocked">Blocked</span>';
+          } else {
+            // Normal item
+            li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
+              '<div class="placement-info">' +
+                '<span class="placement-channel">' + p.channel + '</span>' +
+                '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
+              '</div>' +
+              '<span class="placement-spend">£' + spendValue + '</span>' +
+              '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+            
+            // Add report flag click handler
+            var flagBtn = li.querySelector('.report-flag');
+            flagBtn.addEventListener('click', function() {
+              reportChannel(p.channel, p.channel, p);
+              flagBtn.classList.add('reported');
+              flagBtn.title = 'Channel reported';
+              showToast('Channel reported to Sentry Engine.', 'success');
+              // Refresh display to show captured state
+              setTimeout(updateDisplay, 500);
+            });
+          }
           
           tier1List.appendChild(li);
         });
@@ -610,23 +738,46 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
-          var spendValue = Number(p.spend || 0).toFixed(2);
-          li.innerHTML = 
-            '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
-            '<div class="placement-info">' +
-              '<span class="placement-channel">' + p.channel + '</span>' +
-              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
-            '</div>' +
-            '<span class="placement-spend">£' + spendValue + '</span>' +
-            '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
           
-          // Add report flag click handler
-          var flagBtn = li.querySelector('.report-flag');
-          flagBtn.addEventListener('click', function() {
-            flagBtn.classList.add('reported');
-            flagBtn.title = 'Channel reported';
-            showToast('Channel reported to Sentry Engine.', 'success');
-          });
+          // Check if already blocked
+          var isBlocked = isChannelBlocked(p.channel);
+          var blockedData = globallyBlocked[p.channel];
+          
+          var spendValue = Number(p.spend || 0).toFixed(2);
+          
+          if (isBlocked) {
+            // Show as captured/blocked
+            li.classList.add('sentry-captured');
+            li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" disabled>' +
+              '<div class="placement-info">' +
+                '<span class="placement-channel">' + p.channel + '</span>' +
+                '<span class="placement-category">Blocked • Reported ' + (blockedData.reportCount || 1) + ' times</span>' +
+              '</div>' +
+              '<span class="placement-spend">£' + spendValue + '</span>' +
+              '<span class="sentry-badge blocked">Blocked</span>';
+          } else {
+            // Normal item
+            li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
+              '<div class="placement-info">' +
+                '<span class="placement-channel">' + p.channel + '</span>' +
+                '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
+              '</div>' +
+              '<span class="placement-spend">£' + spendValue + '</span>' +
+              '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+            
+            // Add report flag click handler
+            var flagBtn = li.querySelector('.report-flag');
+            flagBtn.addEventListener('click', function() {
+              reportChannel(p.channel, p.channel, p);
+              flagBtn.classList.add('reported');
+              flagBtn.title = 'Channel reported';
+              showToast('Channel reported to Sentry Engine.', 'success');
+              // Refresh display to show captured state
+              setTimeout(updateDisplay, 500);
+            });
+          }
           
           tier2List.appendChild(li);
         });

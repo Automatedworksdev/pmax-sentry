@@ -1152,6 +1152,38 @@ body {
   flex-shrink: 0;
 }
 
+/* Sentry Captured - Visual Lock */
+.placement-item.sentry-captured {
+  opacity: 0.5;
+  background: var(--gray-50);
+}
+
+.placement-item.sentry-captured .placement-channel {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.sentry-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--gray-400);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sentry-badge.blocked {
+  background: var(--error);
+}
+
+.sentry-badge.reported {
+  background: var(--warning);
+}
+
 /* Report Flag Button */
 .report-flag {
   background: none;
