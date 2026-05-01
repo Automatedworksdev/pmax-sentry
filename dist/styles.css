@@ -168,18 +168,19 @@ body {
   background: transparent;
   box-shadow: none;
   border: none;
-  margin: 40px auto -20px auto;
+  margin: 40px auto -25px auto !important;
   display: block;
   object-fit: fill;
+  filter: drop-shadow(0 10px 15px rgba(0, 50, 150, 0.1));
 }
 
 /* Brand Title */
 .license-view h1 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: #000000;
   margin: 0 0 4px 0;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.5px;
 }
 
 .license-view .subtitle {
@@ -450,17 +451,18 @@ body {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  margin: 40px auto -20px auto;
+  margin: 40px auto -25px auto !important;
   padding: 0;
   object-fit: fill;
+  filter: drop-shadow(0 10px 15px rgba(0, 50, 150, 0.1));
 }
 
 .header-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: #000000;
   margin: 0 0 4px 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.5px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -524,7 +526,7 @@ body {
 }
 
 .header-status {
-  padding: var(--space-1) var(--space-3);
+  padding: 2px 12px;
   background: var(--success-bg);
   color: var(--success);
   font-size: 12px;
@@ -676,7 +678,7 @@ body {
 .stat-num {
   font-size: 24px;
   font-weight: 700;
-  color: var(--primary);
+  color: #1890ff;
   line-height: 1;
   margin: 0;
   display: flex;
@@ -686,8 +688,8 @@ body {
 }
 
 .stat-label {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 10px;
+  color: #8c8c8c;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   line-height: 1;
