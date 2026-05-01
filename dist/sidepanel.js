@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     sendMessage({ action: 'getStats' }, function(stats) {
       sendMessage({ action: 'getSyncStatus' }, function(syncStatus) {
         if (stats) {
+          // Update channel count
           if (channelCount) {
             if (syncStatus && syncStatus.syncStatus === 'in_progress') {
               channelCount.textContent = '...';
@@ -131,6 +132,15 @@ document.addEventListener('DOMContentLoaded', function() {
               channelCount.classList.remove('pulsing');
             }
           }
+          
+          // Update dynamic tagline
+          var taglineEl = document.getElementById('header-tagline');
+          if (taglineEl && stats.channelCount > 0) {
+            taglineEl.innerHTML = '<span class="count">' + stats.channelCount.toLocaleString() + '</span> junk channels blocked';
+          } else if (taglineEl) {
+            taglineEl.innerHTML = '<span class="count">0</span> junk channels blocked';
+          }
+          
           if (dataVersion) dataVersion.textContent = stats.version || '2.2';
           if (lastSync) {
             if (syncStatus && syncStatus.syncStatus === 'completed' && stats.syncedAt) {
