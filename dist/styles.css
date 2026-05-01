@@ -152,33 +152,32 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--space-8);
-  background: linear-gradient(180deg, var(--gray-50) 0%, #ffffff 100%);
+  background: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   .license-view {
-    background: linear-gradient(180deg, var(--gray-900) 0%, var(--gray-800) 100%);
+    background: #ffffff;
   }
 }
 
 /* Logo Section */
 .license-view .logo {
-  width: 64px;
-  height: 64px;
-  margin-bottom: var(--space-6);
-  filter: drop-shadow(0 4px 12px rgba(30, 58, 95, 0.15));
-  transition: transform 0.3s ease;
-}
-
-.license-view .logo:hover {
-  transform: scale(1.05);
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--space-4);
+  object-fit: cover;
+  object-position: top;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
 /* Brand Title */
 .license-view h1 {
   font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-weight: 900;
+  color: #000000;
   margin-bottom: var(--space-2);
   letter-spacing: -0.025em;
 }
@@ -441,26 +440,28 @@ body {
 }
 
 .header-logo {
-  width: 120px;
-  height: auto;
+  width: 80px;
+  height: 80px;
   display: block;
   margin-top: 20px;
   margin-bottom: 10px;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
+  object-fit: cover;
+  object-position: top;
 }
 
 @media (prefers-color-scheme: dark) {
   .header-logo {
-    filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
+    object-fit: cover;
+    object-position: top;
   }
 }
 
 .header-title {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 900;
   color: #000000;
   margin: 15px 0 0 0;
   letter-spacing: -0.02em;
