@@ -163,13 +163,14 @@ body {
 
 /* Logo Section */
 .license-view .logo {
-  width: 120px;
-  height: auto;
+  width: 220px !important;
+  height: 110px !important;
   background: transparent;
   box-shadow: none;
   border: none;
-  margin: 30px auto 15px auto;
+  margin: 30px auto -20px auto !important;
   display: block;
+  object-fit: fill;
 }
 
 /* Brand Title */
@@ -177,7 +178,7 @@ body {
   font-size: 20px;
   font-weight: 800;
   color: #000000;
-  margin-bottom: 4px;
+  margin: 0 0 4px 0 !important;
   letter-spacing: -0.025em;
 }
 
@@ -443,21 +444,22 @@ body {
 }
 
 .header-logo {
-  width: 120px;
-  height: auto;
+  width: 220px !important;
+  height: 110px !important;
   display: block;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  margin: 30px auto 15px auto;
+  margin: 30px auto -20px auto !important;
   padding: 0;
+  object-fit: fill;
 }
 
 .header-title {
   font-size: 20px;
   font-weight: 800;
   color: #000000;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px 0 !important;
   letter-spacing: -0.02em;
 }
 
