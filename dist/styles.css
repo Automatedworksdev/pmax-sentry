@@ -162,22 +162,14 @@ body {
 }
 
 /* Logo Section */
-.license-view .logo-cropper {
-  height: 45px;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  margin: 0 auto var(--space-2) auto;
-}
-
 .license-view .logo {
-  width: 90px;
+  width: 70px;
   height: auto;
   background: transparent;
   box-shadow: none;
   border: none;
-  margin-top: -5px;
+  margin: 0 auto var(--space-4) auto;
+  display: block;
 }
 
 /* Brand Title */
@@ -447,22 +439,18 @@ body {
 }
 
 .logo-cropper {
-  height: 45px;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  margin: 0 auto 10px auto;
+  display: none;
 }
 
 .header-logo {
-  width: 90px;
+  width: 70px;
   height: auto;
   display: block;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  margin-top: -5px;
+  margin: 0 0 10px 0;
+  padding: 0;
 }
 
 .header-title {
