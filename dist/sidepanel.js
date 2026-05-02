@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var validateBtn = document.getElementById('validate-license-btn');
   var licenseStatus = document.getElementById('license-status');
   var scanBtn = document.getElementById('scan-btn');
-  var excludeSelectedBtn = document.getElementById('exclude-selected-btn');
-  var reportSelectedBtn = document.getElementById('report-selected-btn');
+  var blockWasteBtn = document.getElementById('block-waste-btn');
+  var feedSentryBtn = document.getElementById('feed-sentry-btn');
   var saveBtn = document.getElementById('save-btn');
   var statusEl = document.getElementById('status');
   var tier1List = document.getElementById('tier1-list');
@@ -445,9 +445,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Exclude Selected - Only exclude checked items
-  if (excludeSelectedBtn) {
-    excludeSelectedBtn.addEventListener('click', function() {
+  // Block Waste - Block selected channels
+  if (blockWasteBtn) {
+    blockWasteBtn.addEventListener('click', function() {
       var selectedChannels = [];
       var selectedItems = [];
       
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       if (selectedChannels.length === 0) {
-        showToast('No channels selected to exclude.');
+        showToast('No channels selected to block.');
         return;
       }
       
@@ -480,13 +480,13 @@ document.addEventListener('DOMContentLoaded', function() {
       // Refresh display to show captured state
       updateDisplay();
       
-      showToast(selectedChannels.length + ' channel(s) added to Sentry Block List.');
+      showToast(selectedChannels.length + ' channel(s) blocked.');
     });
   }
   
-  // Report Selected - Report all checked items
-  if (reportSelectedBtn) {
-    reportSelectedBtn.addEventListener('click', function() {
+  // Feed the Sentry - Report selected channels to global database
+  if (feedSentryBtn) {
+    feedSentryBtn.addEventListener('click', function() {
       var selectedItems = [];
       
       // Get all checked items from both lists
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Refresh display to show captured state
       updateDisplay();
       
-      showToast(selectedItems.length + ' channel(s) reported to Sentry Engine.');
+      showToast(selectedItems.length + ' channel(s) fed to Sentry database.');
     });
   }
   
@@ -804,8 +804,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Reset button states - disabled until items are selected
-    if (excludeSelectedBtn) excludeSelectedBtn.disabled = true;
-    if (reportSelectedBtn) reportSelectedBtn.disabled = true;
+    if (blockWasteBtn) blockWasteBtn.disabled = true;
+    if (feedSentryBtn) feedSentryBtn.disabled = true;
     if (saveBtn) saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
     
     // Re-attach select all listeners after lists are populated
@@ -889,14 +889,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var tier2Checked = document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
     var totalChecked = tier1Checked + tier2Checked;
     
-    // Update button states
-    if (excludeSelectedBtn) {
-      excludeSelectedBtn.disabled = totalChecked === 0;
-      excludeSelectedBtn.textContent = totalChecked > 0 ? 'Exclude Selected (' + totalChecked + ')' : 'Exclude Selected';
+    // Update footer button states
+    if (blockWasteBtn) {
+      blockWasteBtn.disabled = totalChecked === 0;
     }
-    if (reportSelectedBtn) {
-      reportSelectedBtn.disabled = totalChecked === 0;
-      reportSelectedBtn.textContent = totalChecked > 0 ? 'Report Selected (' + totalChecked + ')' : 'Report Selected';
+    if (feedSentryBtn) {
+      feedSentryBtn.disabled = totalChecked === 0;
     }
   }
   

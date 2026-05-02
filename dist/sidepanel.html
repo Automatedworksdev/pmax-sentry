@@ -93,11 +93,9 @@
     <!-- Status Bar -->
     <div id="status" class="dash-status">Ready to scan</div>
     
-    <!-- Actions -->
+    <!-- Actions - Clean scan flow -->
     <div class="dash-actions">
       <button id="scan-btn" class="dash-btn dash-btn-primary">Scan Placements</button>
-      <button id="exclude-selected-btn" class="dash-btn dash-btn-danger" disabled>Exclude Selected</button>
-      <button id="report-selected-btn" class="dash-btn dash-btn-secondary" disabled>Report Selected</button>
       <button id="save-btn" class="dash-btn dash-btn-secondary">Save Report</button>
     </div>
     
@@ -137,6 +135,12 @@
         <h3>📊 Category Breakdown</h3>
       </div>
       <div id="category-breakdown"></div>
+    </div>
+    
+    <!-- Footer Actions -->
+    <div class="footer-actions">
+      <button id="block-waste-btn" class="footer-btn footer-btn-primary" disabled title="Block selected channels">Block Waste</button>
+      <button id="feed-sentry-btn" class="footer-btn footer-btn-outline" disabled title="Contribute these junk channels to the global Sentry database.">Feed the Sentry</button>
     </div>
     
   </div>
