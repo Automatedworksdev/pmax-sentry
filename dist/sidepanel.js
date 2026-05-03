@@ -703,14 +703,27 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
             // Normal item
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'placement-checkbox';
+            checkbox.dataset.tier = 'tier1';
+            checkbox.dataset.index = index;
+            
+            // Add change listener to update button states
+            checkbox.addEventListener('change', function() {
+              updateSelectedCount();
+            });
+            
             li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+            
+            // Insert checkbox at the beginning
+            li.insertBefore(checkbox, li.firstChild);
             
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
@@ -758,14 +771,27 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
             // Normal item
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'placement-checkbox';
+            checkbox.dataset.tier = 'tier2';
+            checkbox.dataset.index = index;
+            
+            // Add change listener to update button states
+            checkbox.addEventListener('change', function() {
+              updateSelectedCount();
+            });
+            
             li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
+            
+            // Insert checkbox at the beginning
+            li.insertBefore(checkbox, li.firstChild);
             
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
