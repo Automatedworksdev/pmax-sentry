@@ -445,78 +445,71 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Block Waste - Block selected channels
+  // Block Waste - Block ALL channels in Confirmed and Suspected (Global Action)
   if (blockWasteBtn) {
     blockWasteBtn.addEventListener('click', function() {
-      var selectedChannels = [];
-      var selectedItems = [];
+      var allChannels = [];
       
-      // Get all checked items from both lists
-      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
-        var item = cb.closest('.placement-item');
-        if (item) {
-          selectedChannels.push(item.dataset.channel);
-          selectedItems.push({ channel: item.dataset.channel, tier: 'tier1' });
+      // Get ALL items from both lists (not just checked)
+      document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
+        if (!item.classList.contains('sentry-captured')) {
+          allChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
         }
       });
-      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
-        var item = cb.closest('.placement-item');
-        if (item) {
-          selectedChannels.push(item.dataset.channel);
-          selectedItems.push({ channel: item.dataset.channel, tier: 'tier2' });
+      document.querySelectorAll('#tier2-list .placement-item').forEach(function(item) {
+        if (!item.classList.contains('sentry-captured')) {
+          allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
       
-      if (selectedChannels.length === 0) {
-        showToast('No channels selected to block.');
+      if (allChannels.length === 0) {
+        showToast('No channels to block.');
         return;
       }
       
-      // Block all selected channels
-      selectedItems.forEach(function(item) {
+      // Block all channels
+      allChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
       
       // Refresh display to show captured state
       updateDisplay();
       
-      showToast(selectedChannels.length + ' channel(s) blocked.');
+      showToast(allChannels.length + ' channel(s) blocked.');
     });
   }
   
-  // Feed the Sentry - Report selected channels to global database
+  // Feed the Sentry - Report ALL channels to global database (Global Action)
   if (feedSentryBtn) {
     feedSentryBtn.addEventListener('click', function() {
-      var selectedItems = [];
+      var allChannels = [];
       
-      // Get all checked items from both lists
-      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
-        var item = cb.closest('.placement-item');
-        if (item) {
-          selectedItems.push({ channel: item.dataset.channel, tier: 'tier1' });
+      // Get ALL items from both lists (not just checked)
+      document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
+        if (!item.classList.contains('sentry-captured')) {
+          allChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
         }
       });
-      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
-        var item = cb.closest('.placement-item');
-        if (item) {
-          selectedItems.push({ channel: item.dataset.channel, tier: 'tier2' });
+      document.querySelectorAll('#tier2-list .placement-item').forEach(function(item) {
+        if (!item.classList.contains('sentry-captured')) {
+          allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
       
-      if (selectedItems.length === 0) {
-        showToast('No channels selected to report.');
+      if (allChannels.length === 0) {
+        showToast('No channels to report.');
         return;
       }
       
-      // Report all selected channels (upsert logic)
-      selectedItems.forEach(function(item) {
+      // Report all channels
+      allChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
       
       // Refresh display to show captured state
       updateDisplay();
       
-      showToast(selectedItems.length + ' channel(s) fed to Sentry database.');
+      showToast(allChannels.length + ' channel(s) fed to Sentry database.');
     });
   }
   
@@ -702,28 +695,15 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item
-            var checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'placement-checkbox';
-            checkbox.dataset.tier = 'tier1';
-            checkbox.dataset.index = index;
-            
-            // Add change listener to update button states
-            checkbox.addEventListener('change', function() {
-              updateSelectedCount();
-            });
-            
+            // Normal item - checkbox is unchecked by default (untick to save from blocking)
             li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-            
-            // Insert checkbox at the beginning
-            li.insertBefore(checkbox, li.firstChild);
             
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
@@ -770,28 +750,15 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item
-            var checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'placement-checkbox';
-            checkbox.dataset.tier = 'tier2';
-            checkbox.dataset.index = index;
-            
-            // Add change listener to update button states
-            checkbox.addEventListener('change', function() {
-              updateSelectedCount();
-            });
-            
+            // Normal item - checkbox is unchecked by default (untick to save from blocking)
             li.innerHTML = 
+              '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-            
-            // Insert checkbox at the beginning
-            li.insertBefore(checkbox, li.firstChild);
             
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
@@ -910,26 +877,12 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSelectedCount();
   }
   
-  function updateSelectedCount() {
-    var tier1Checked = document.querySelectorAll('#tier1-list .placement-checkbox:checked').length;
-    var tier2Checked = document.querySelectorAll('#tier2-list .placement-checkbox:checked').length;
-    var totalChecked = tier1Checked + tier2Checked;
-    
-    // Update footer button states
-    if (blockWasteBtn) {
-      blockWasteBtn.disabled = totalChecked === 0;
-    }
-    if (feedSentryBtn) {
-      feedSentryBtn.disabled = totalChecked === 0;
-    }
-  }
-  
   // Attach listeners on load
   attachSelectAllListeners();
   
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');
-  console.log('[PMax] excludeSelectedBtn found:', !!excludeSelectedBtn, 'disabled:', excludeSelectedBtn ? excludeSelectedBtn.disabled : 'N/A');
-  console.log('[PMax] reportSelectedBtn found:', !!reportSelectedBtn, 'disabled:', reportSelectedBtn ? reportSelectedBtn.disabled : 'N/A');
-  console.log('[PMax] saveBtn found:', !!saveBtn, 'disabled:', saveBtn ? saveBtn.disabled : 'N/A');
+  console.log('[PMax] blockWasteBtn found:', !!blockWasteBtn);
+  console.log('[PMax] feedSentryBtn found:', !!feedSentryBtn);
+  console.log('[PMax] saveBtn found:', !!saveBtn);
 });
