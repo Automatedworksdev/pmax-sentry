@@ -168,16 +168,42 @@
     return 'General';
   }
   
-  // Extract data
-  function extractChannelName(row) {
+  // Extract data - gets both display name and actual Placement ID from links
+  function extractChannelData(row) {
     const cells = row.querySelectorAll('td');
+    let displayName = '';
+    let placementId = '';
+    
     for (const cell of cells) {
+      // Try to get the actual link/ID first
+      const link = cell.querySelector('a[href]');
+      if (link) {
+        const href = link.href;
+        // Extract YouTube channel ID or App ID from URL
+        const ytMatch = href.match(/\/channel\/(UC[\w-]+)/);
+        const appMatch = href.match(/\/store\/apps\/details\?id=([\w.]+)/);
+        if (ytMatch) placementId = ytMatch[1];
+        else if (appMatch) placementId = appMatch[1];
+        else placementId = href; // Fallback to full URL
+      }
+      
+      // Get display name from text
       const text = cell.textContent?.trim();
-      if (text && text.length > 2 && !text.match(/^[\d,]+$/)) {
-        return text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
+      if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
+        displayName = text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
       }
     }
-    return '';
+    
+    // If no ID found in links, use display name as fallback
+    if (!placementId) placementId = displayName;
+    
+    return { displayName, placementId };
+  }
+  
+  // Legacy function for compatibility
+  function extractChannelName(row) {
+    const data = extractChannelData(row);
+    return data.displayName;
   }
   
   function extractSpend(row) {
@@ -238,21 +264,23 @@
     rows.forEach((row, index) => {
       if (row.querySelector('th')) return; // Skip header
       
-      const name = extractChannelName(row);
-      if (!name) {
+      const channelData = extractChannelData(row);
+      if (!channelData.displayName) {
         console.log('[PMax] No name found for row', index);
         return;
       }
       
-      console.log('[PMax] Row', index, 'channel:', name);
+      console.log('[PMax] Row', index, 'channel:', channelData.displayName, 'ID:', channelData.placementId);
       
-      const classification = classifyChannel(name);
+      // Classify using the placement ID if available, otherwise use display name
+      const classification = classifyChannel(channelData.placementId || channelData.displayName);
       console.log('[PMax] Classification:', classification);
       
       if (classification.tier === 'tier1' || classification.tier === 'tier2') {
         const spend = extractSpend(row);
         const placement = { 
-          channel: name, 
+          channel: channelData.displayName,
+          placementId: channelData.placementId,
           spend, 
           row,
           category: classification.category,
@@ -289,8 +317,8 @@
     
     return {
       success: true,
-      tier1: tier1Placements.map(p => ({ channel: p.channel, spend: p.spend, category: p.category })),
-      tier2: tier2Placements.map(p => ({ channel: p.channel, spend: p.spend, category: p.category, keyword: p.keyword })),
+      tier1: tier1Placements.map(p => ({ channel: p.channel, placementId: p.placementId, spend: p.spend, category: p.category })),
+      tier2: tier2Placements.map(p => ({ channel: p.channel, placementId: p.placementId, spend: p.spend, category: p.category, keyword: p.keyword })),
       totalSpend,
       categoryTotals,
       counts: { tier1: tier1Placements.length, tier2: tier2Placements.length }

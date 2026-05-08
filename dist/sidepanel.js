@@ -689,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'Channel': p.channel,
             'Spend': p.spend,
             'Category': p.category || 'Unknown',
-            'Placement ID': p.channel
+            'Placement ID': p.placementId || p.channel
           });
         });
       }
@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'Channel': p.channel,
             'Spend': p.spend,
             'Category': p.category || 'Unknown',
-            'Placement ID': p.channel
+            'Placement ID': p.placementId || p.channel
           });
         });
       }
