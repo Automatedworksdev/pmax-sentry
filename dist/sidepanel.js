@@ -710,11 +710,11 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Set column widths (auto-fit based on content)
       ws['!cols'] = [
-        { wch: 12 },  // Tier
-        { wch: 35 },  // Channel
-        { wch: 10 },  // Spend
-        { wch: 15 },  // Category
-        { wch: 35 }   // Placement ID
+        { wch: 15 },  // Tier
+        { wch: 50 },  // Channel - wider to prevent overlap
+        { wch: 12 },  // Spend
+        { wch: 20 },  // Category
+        { wch: 50 }   // Placement ID - wider to prevent overlap
       ];
       
       // Insert instruction row at top
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var spendValue = typeof spendData === 'object' ? (spendData.spend || 0) : spendData;
           var div = document.createElement('div');
           div.className = 'category-row';
-          div.innerHTML = '<span class="category-name">' + cat + '</span><span class="category-spend">£' + Number(spendValue).toFixed(2) + '</span>';
+          div.innerHTML = '<span class="category-name">' + cat + ':</span><span class="category-spend"> £' + Number(spendValue).toFixed(2) + '</span>';
           categoryBreakdown.appendChild(div);
         });
       }
