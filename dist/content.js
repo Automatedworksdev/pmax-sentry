@@ -179,18 +179,28 @@
       const link = cell.querySelector('a[href]');
       if (link) {
         const href = link.href;
-        // Extract YouTube channel ID or App ID from URL
+        // Use FULL URL as placement ID for Google Ads compatibility
+        placementId = href;
+        
+        // Also extract just the ID portion for classification purposes
         const ytMatch = href.match(/\/channel\/(UC[\w-]+)/);
         const appMatch = href.match(/\/store\/apps\/details\?id=([\w.]+)/);
-        if (ytMatch) placementId = ytMatch[1];
-        else if (appMatch) placementId = appMatch[1];
-        else placementId = href; // Fallback to full URL
+        // Store extracted ID separately if needed for classification
+        if (ytMatch) window.extractedId = ytMatch[1];
+        else if (appMatch) window.extractedId = appMatch[1];
       }
       
-      // Get display name from text
-      const text = cell.textContent?.trim();
-      if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
-        displayName = text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
+      // Get display name from text (the link text)
+      const linkText = cell.querySelector('a[href]')?.textContent?.trim();
+      if (linkText && linkText.length > 2) {
+        displayName = linkText.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
+      }
+      // Fallback to cell text if no link text
+      if (!displayName) {
+        const text = cell.textContent?.trim();
+        if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
+          displayName = text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
+        }
       }
     }
     
