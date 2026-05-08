@@ -675,33 +675,102 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Save
+  // Save - Premium XLSX Export
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
-      // Header instruction and column headers with extra spaces for auto-width
-      var csv = 'Sentry Report: Copy the Placement ID column into your Google Ads Exclusion list.\n';
-      csv += 'Tier       ,Channel                ,Spend   ,Category    ,Placement ID\n';
+      // Prepare data for XLSX
+      var data = [];
       
+      // Add data rows
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
-          // Extract Placement ID from channel name (assumes it's the channel name or a URL)
-          var placementId = p.channel; // Use channel as the Placement ID
-          csv += 'Confirmed  ,"' + p.channel + '",' + p.spend.toFixed(2) + ',' + (p.category || 'Unknown') + ',"' + placementId + '"\n';
+          data.push({
+            'Tier': 'Confirmed',
+            'Channel': p.channel,
+            'Spend': p.spend,
+            'Category': p.category || 'Unknown',
+            'Placement ID': p.channel
+          });
         });
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
-          var placementId = p.channel;
-          csv += 'Suspected  ,"' + p.channel + '",' + p.spend.toFixed(2) + ',' + (p.category || 'Unknown') + ',"' + placementId + '"\n';
+          data.push({
+            'Tier': 'Suspected',
+            'Channel': p.channel,
+            'Spend': p.spend,
+            'Category': p.category || 'Unknown',
+            'Placement ID': p.channel
+          });
         });
       }
-
-      var blob = new Blob([csv], { type: 'text/csv' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'pmax-sentry-' + new Date().toISOString().split('T')[0] + '.csv';
-      a.click();
+      
+      // Create worksheet from data
+      var ws = XLSX.utils.json_to_sheet(data);
+      
+      // Set column widths (auto-fit based on content)
+      ws['!cols'] = [
+        { wch: 12 },  // Tier
+        { wch: 35 },  // Channel
+        { wch: 10 },  // Spend
+        { wch: 15 },  // Category
+        { wch: 35 }   // Placement ID
+      ];
+      
+      // Insert instruction row at top
+      XLSX.utils.sheet_add_aoa(ws, [['Sentry Report: Copy the Placement ID column into your Google Ads Exclusion list.']], { origin: 0 });
+      
+      // Merge cells A1:E1 for instruction
+      if (!ws['!merges']) ws['!merges'] = [];
+      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
+      
+      // Style the instruction row (A1)
+      ws['A1'].s = {
+        font: { name: 'Calibri', sz: 14, bold: true },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+      
+      // Style header row (row 2, which is now row 1 after inserting instruction)
+      var headerStyle = {
+        font: { name: 'Calibri', sz: 12, bold: true },
+        fill: { fgColor: { rgb: 'D9D9D9' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+      
+      var headers = ['A', 'B', 'C', 'D', 'E'];
+      headers.forEach(function(col) {
+        var cell = ws[col + '2'];
+        if (cell) cell.s = headerStyle;
+      });
+      
+      // Style data rows
+      var rowCount = data.length + 2; // +2 for instruction and header rows
+      for (var row = 3; row <= rowCount; row++) {
+        ['A', 'B', 'C', 'D', 'E'].forEach(function(col) {
+          var cell = ws[col + row];
+          if (cell) {
+            cell.s = {
+              font: { name: 'Calibri', sz: 12 },
+              alignment: { vertical: 'center' }
+            };
+            // Number formatting for Spend column
+            if (col === 'C' && typeof cell.v === 'number') {
+              cell.s.numFmt = '0.00';
+              cell.s.alignment = { horizontal: 'right', vertical: 'center' };
+            }
+          }
+        });
+      }
+      
+      // Create workbook
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'PMax Sentry Report');
+      
+      // Generate filename with timestamp
+      var filename = 'pmax-sentry-' + new Date().toISOString().split('T')[0] + '.xlsx';
+      
+      // Write and download
+      XLSX.writeFile(wb, filename);
     });
   }
 
