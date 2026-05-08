@@ -201,9 +201,9 @@
     row.dataset.sentryTier = classification.tier;
     row.dataset.sentryCategory = classification.category;
     
-    // Add category badge to second cell
+    // Add category badge to first cell (Placement name)
     const cells = row.querySelectorAll('td');
-    const nameCell = cells[1]; // Second cell is usually the name
+    const nameCell = cells[0]; // First cell is now the name (Placement column)
     if (nameCell && !nameCell.querySelector('.sentry-cat-badge')) {
       const badge = document.createElement('span');
       badge.className = 'sentry-cat-badge';

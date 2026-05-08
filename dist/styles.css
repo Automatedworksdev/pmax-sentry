@@ -398,6 +398,8 @@ body {
   min-height: 100vh;
   background: #ffffff !important;
   padding-bottom: var(--space-8);
+  overflow-y: auto;
+  max-height: 100vh;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1246,6 +1248,9 @@ body {
   margin-top: var(--space-4);
   border-top: 1px solid #f0f0f0;
   background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
 }
 
 .footer-btn {
