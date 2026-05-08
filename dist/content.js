@@ -181,7 +181,6 @@
       const displayName = link.textContent?.trim() || '';
       
       console.log('[PMax] Extracted:', { displayName, href });
-      alert('Extracted: ' + displayName + ' -> ' + href); // DEBUG ALERT
       
       return { 
         displayName: displayName,
@@ -264,7 +263,6 @@
     
     const rows = document.querySelectorAll('table tbody tr, table tr');
     console.log('[PMax] Found', rows.length, 'rows');
-    alert('[PMax] Starting scan. Found ' + rows.length + ' rows'); // DEBUG
     
     rows.forEach((row, index) => {
       if (row.querySelector('th')) {

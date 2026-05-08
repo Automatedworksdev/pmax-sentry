@@ -423,6 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Filter out already blocked channels before storing
             scanResults = filterBlockedChannels(response);
+            console.log('[PMax] scanResults:', JSON.stringify(scanResults, null, 2)); // DEBUG
             updateDisplay();
 
             var total = (scanResults.counts && scanResults.counts.tier1 || 0) + (scanResults.counts && scanResults.counts.tier2 || 0);
