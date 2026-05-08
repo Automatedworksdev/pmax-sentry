@@ -682,13 +682,13 @@ document.addEventListener('DOMContentLoaded', function() {
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
           var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
-          csv += 'Confirmed,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + ',' + status + '\n';
+          csv += '"Confirmed","' + p.channel + '",' + p.spend.toFixed(2) + ',"' + (p.category || 'Unknown') + '","' + status + '"\n';
         });
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
           var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
-          csv += 'Suspected,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + ',' + status + '\n';
+          csv += '"Suspected","' + p.channel + '",' + p.spend.toFixed(2) + ',"' + (p.category || 'Unknown') + '","' + status + '"\n';
         });
       }
 
