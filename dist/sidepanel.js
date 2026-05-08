@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.dataset.channel = p.channel;
             checkbox.dataset.tier = 'tier1';
             
-            // Add change listener to sync with Google Ads page highlighting
+            // Add change listener to sync with Google Ads page highlighting AND header checkbox
             checkbox.addEventListener('change', function() {
               chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
                 if (tabs[0] && tabs[0].id) {
@@ -727,6 +727,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   });
                 }
               });
+              // Sync header checkbox state
+              syncHeaderCheckbox('tier1-list', 'select-all-tier1');
             });
             
             li.appendChild(checkbox);
@@ -784,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.dataset.channel = p.channel;
             checkbox.dataset.tier = 'tier2';
             
-            // Add change listener to sync with Google Ads page highlighting
+            // Add change listener to sync with Google Ads page highlighting AND header checkbox
             checkbox.addEventListener('change', function() {
               chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
                 if (tabs[0] && tabs[0].id) {
@@ -795,6 +797,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   });
                 }
               });
+              // Sync header checkbox state
+              syncHeaderCheckbox('tier2-list', 'select-all-tier2');
             });
             
             li.appendChild(checkbox);
@@ -840,6 +844,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (blockWasteBtn) blockWasteBtn.disabled = false;
     if (feedSentryBtn) feedSentryBtn.disabled = false;
     if (saveBtn) saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
+    
+    // Initial sync of header checkboxes
+    syncHeaderCheckbox('tier1-list', 'select-all-tier1');
+    syncHeaderCheckbox('tier2-list', 'select-all-tier2');
   }
 
   // Listen for sync completion messages from background
@@ -907,6 +915,45 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         });
       });
+    }
+  }
+  
+  // Sync header checkbox based on individual checkbox states
+  function syncHeaderCheckbox(listId, headerId) {
+    var headerCheckbox = document.getElementById(headerId);
+    if (!headerCheckbox) return;
+    
+    var checkboxes = document.querySelectorAll('#' + listId + ' .placement-checkbox');
+    if (checkboxes.length === 0) {
+      headerCheckbox.checked = false;
+      headerCheckbox.indeterminate = false;
+      return;
+    }
+    
+    var checkedCount = 0;
+    var uncheckedCount = 0;
+    
+    checkboxes.forEach(function(cb) {
+      if (!cb.disabled) {
+        if (cb.checked) checkedCount++;
+        else uncheckedCount++;
+      }
+    });
+    
+    // All checked
+    if (checkedCount > 0 && uncheckedCount === 0) {
+      headerCheckbox.checked = true;
+      headerCheckbox.indeterminate = false;
+    }
+    // None checked
+    else if (checkedCount === 0 && uncheckedCount > 0) {
+      headerCheckbox.checked = false;
+      headerCheckbox.indeterminate = false;
+    }
+    // Partial
+    else {
+      headerCheckbox.checked = false;
+      headerCheckbox.indeterminate = true;
     }
   }
   
