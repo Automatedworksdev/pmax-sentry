@@ -469,6 +469,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
+      // Confirmation popup
+      var proceed = confirm('You are about to block ' + checkedChannels.length + ' placements. This will stop your ads from showing on these channels. Proceed?');
+      if (!proceed) return;
+
       // Block checked channels
       checkedChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
@@ -483,6 +487,20 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         });
       });
+
+      // Success animation
+      var originalText = blockWasteBtn.textContent;
+      var originalClass = blockWasteBtn.className;
+      blockWasteBtn.textContent = '✓ Placements Blocked';
+      blockWasteBtn.style.background = '#10b981';
+      blockWasteBtn.style.color = 'white';
+      
+      setTimeout(function() {
+        blockWasteBtn.textContent = originalText;
+        blockWasteBtn.className = originalClass;
+        blockWasteBtn.style.background = '';
+        blockWasteBtn.style.color = '';
+      }, 3000);
 
       // Refresh display to show captured state
       updateDisplay();
@@ -519,6 +537,22 @@ document.addEventListener('DOMContentLoaded', function() {
       checkedChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
+
+      // Success animation
+      var originalText = feedSentryBtn.textContent;
+      var originalClass = feedSentryBtn.className;
+      feedSentryBtn.textContent = '✓ Intelligence Shared';
+      feedSentryBtn.style.background = '#10b981';
+      feedSentryBtn.style.color = 'white';
+      feedSentryBtn.style.borderColor = '#10b981';
+      
+      setTimeout(function() {
+        feedSentryBtn.textContent = originalText;
+        feedSentryBtn.className = originalClass;
+        feedSentryBtn.style.background = '';
+        feedSentryBtn.style.color = '';
+        feedSentryBtn.style.borderColor = '';
+      }, 3000);
 
       // Refresh display to show captured state
       updateDisplay();
