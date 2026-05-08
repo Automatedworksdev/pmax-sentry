@@ -684,25 +684,25 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add data rows
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
-          console.log('[XLSX] Tier1 item:', p.channel, 'placementId:', p.placementId);
+          var placementIdValue = p.placementId && p.placementId.startsWith('http') ? p.placementId : p.channel;
           data.push({
             'Tier': 'Confirmed',
             'Channel': p.channel,
             'Spend': p.spend,
             'Category': p.category || 'Unknown',
-            'Placement ID': p.placementId && p.placementId.length > 5 ? p.placementId : p.channel
+            'Placement ID': placementIdValue
           });
         });
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
-          console.log('[XLSX] Tier2 item:', p.channel, 'placementId:', p.placementId);
+          var placementIdValue = p.placementId && p.placementId.startsWith('http') ? p.placementId : p.channel;
           data.push({
             'Tier': 'Suspected',
             'Channel': p.channel,
             'Spend': p.spend,
             'Category': p.category || 'Unknown',
-            'Placement ID': p.placementId && p.placementId.length > 5 ? p.placementId : p.channel
+            'Placement ID': placementIdValue
           });
         });
       }

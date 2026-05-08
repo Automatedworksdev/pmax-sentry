@@ -170,44 +170,31 @@
   
   // Extract data - gets both display name and actual Placement ID from links
   function extractChannelData(row) {
-    const cells = row.querySelectorAll('td');
-    let displayName = '';
-    let placementId = '';
+    // Find the first cell with an anchor tag
+    const link = row.querySelector('td a[href]');
     
-    for (const cell of cells) {
-      // Try to get the actual link/ID first
-      const link = cell.querySelector('a[href]');
-      if (link) {
-        const href = link.href;
-        // Use FULL URL as placement ID for Google Ads compatibility
-        placementId = href;
-        
-        // Also extract just the ID portion for classification purposes
-        const ytMatch = href.match(/\/channel\/(UC[\w-]+)/);
-        const appMatch = href.match(/\/store\/apps\/details\?id=([\w.]+)/);
-        // Store extracted ID separately if needed for classification
-        if (ytMatch) window.extractedId = ytMatch[1];
-        else if (appMatch) window.extractedId = appMatch[1];
-      }
+    if (link) {
+      const href = link.getAttribute('href'); // Use getAttribute to get raw href
+      const displayName = link.textContent?.trim() || '';
       
-      // Get display name from text (the link text)
-      const linkText = cell.querySelector('a[href]')?.textContent?.trim();
-      if (linkText && linkText.length > 2) {
-        displayName = linkText.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
-      }
-      // Fallback to cell text if no link text
-      if (!displayName) {
-        const text = cell.textContent?.trim();
-        if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
-          displayName = text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
-        }
+      console.log('[PMax] Extracted:', { displayName, href });
+      
+      return { 
+        displayName: displayName,
+        placementId: href // Full URL as placement ID
+      };
+    }
+    
+    // Fallback: no link found - extract from text
+    const cells = row.querySelectorAll('td');
+    for (const cell of cells) {
+      const text = cell.textContent?.trim();
+      if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
+        return { displayName: text, placementId: text };
       }
     }
     
-    // If no ID found in links, use display name as fallback
-    if (!placementId) placementId = displayName;
-    
-    return { displayName, placementId };
+    return { displayName: '', placementId: '' };
   }
   
   // Legacy function for compatibility
