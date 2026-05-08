@@ -1314,3 +1314,17 @@ body {
   background: #f9fafb;
   border-color: #d1d5db;
 }
+
+/* Result Header Left with Select All */
+.result-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.select-all-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}

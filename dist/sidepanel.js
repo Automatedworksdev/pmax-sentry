@@ -445,71 +445,75 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Block Waste - Block ALL channels in Confirmed and Suspected (Global Action)
+  // Block Waste - Block CHECKED channels only
   if (blockWasteBtn) {
     blockWasteBtn.addEventListener('click', function() {
-      var allChannels = [];
+      var checkedChannels = [];
 
-      // Get ALL items from both lists (not just checked)
-      document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
-        if (!item.classList.contains('sentry-captured')) {
-          allChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
+      // Get only CHECKED items from both lists
+      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item && !item.classList.contains('sentry-captured')) {
+          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
         }
       });
-      document.querySelectorAll('#tier2-list .placement-item').forEach(function(item) {
-        if (!item.classList.contains('sentry-captured')) {
-          allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
+      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item && !item.classList.contains('sentry-captured')) {
+          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
 
-      if (allChannels.length === 0) {
-        showToast('No channels to block.');
+      if (checkedChannels.length === 0) {
+        showToast('No channels selected to block. Uncheck channels you want to keep.');
         return;
       }
 
-      // Block all channels
-      allChannels.forEach(function(item) {
+      // Block checked channels
+      checkedChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
 
       // Refresh display to show captured state
       updateDisplay();
 
-      showToast(allChannels.length + ' channel(s) blocked.');
+      showToast(checkedChannels.length + ' channel(s) blocked.');
     });
   }
 
-  // Feed the Sentry - Report ALL channels to global database (Global Action)
+  // Feed the Sentry - Report CHECKED channels to global database
   if (feedSentryBtn) {
     feedSentryBtn.addEventListener('click', function() {
-      var allChannels = [];
+      var checkedChannels = [];
 
-      // Get ALL items from both lists (not just checked)
-      document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
-        if (!item.classList.contains('sentry-captured')) {
-          allChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
+      // Get only CHECKED items from both lists
+      document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item && !item.classList.contains('sentry-captured')) {
+          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
         }
       });
-      document.querySelectorAll('#tier2-list .placement-item').forEach(function(item) {
-        if (!item.classList.contains('sentry-captured')) {
-          allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
+      document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
+        var item = cb.closest('.placement-item');
+        if (item && !item.classList.contains('sentry-captured')) {
+          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
 
-      if (allChannels.length === 0) {
-        showToast('No channels to report.');
+      if (checkedChannels.length === 0) {
+        showToast('No channels selected to report.');
         return;
       }
 
-      // Report all channels
-      allChannels.forEach(function(item) {
+      // Report checked channels
+      checkedChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
 
       // Refresh display to show captured state
       updateDisplay();
 
-      showToast(allChannels.length + ' channel(s) fed to Sentry database.');
+      showToast(checkedChannels.length + ' channel(s) fed to Sentry database.');
     });
   }
 
@@ -694,25 +698,53 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item - no checkbox, review only
-            li.innerHTML =
-              '<div class="placement-info">' +
-                '<span class="placement-channel">' + p.channel + '</span>' +
-                '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
-              '</div>' +
-              '<span class="placement-spend">£' + spendValue + '</span>' +
-              '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-
-            // Add report flag click handler
-            var flagBtn = li.querySelector('.report-flag');
+            // Normal item - checkbox checked by default (Tier 1 Confirmed)
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'placement-checkbox';
+            checkbox.checked = true;
+            checkbox.dataset.channel = p.channel;
+            checkbox.dataset.tier = 'tier1';
+            
+            // Add change listener to sync with Google Ads page highlighting
+            checkbox.addEventListener('change', function() {
+              chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0] && tabs[0].id) {
+                  chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'toggleHighlight',
+                    channel: p.channel,
+                    show: checkbox.checked
+                  });
+                }
+              });
+            });
+            
+            li.appendChild(checkbox);
+            
+            var infoDiv = document.createElement('div');
+            infoDiv.className = 'placement-info';
+            infoDiv.innerHTML = 
+              '<span class="placement-channel">' + p.channel + '</span>' +
+              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>';
+            li.appendChild(infoDiv);
+            
+            var spendSpan = document.createElement('span');
+            spendSpan.className = 'placement-spend';
+            spendSpan.textContent = '£' + spendValue;
+            li.appendChild(spendSpan);
+            
+            var flagBtn = document.createElement('button');
+            flagBtn.className = 'report-flag';
+            flagBtn.title = 'Report to Sentry Engine';
+            flagBtn.innerHTML = '🚩';
             flagBtn.addEventListener('click', function() {
               reportChannel(p.channel, p.channel, p);
               flagBtn.classList.add('reported');
               flagBtn.title = 'Channel reported';
               showToast('Channel reported to Sentry Engine.', 'success');
-              // Refresh display to show captured state
               setTimeout(updateDisplay, 500);
             });
+            li.appendChild(flagBtn);
           }
 
           tier1List.appendChild(li);
@@ -747,25 +779,53 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item - no checkbox, review only
-            li.innerHTML =
-              '<div class="placement-info">' +
-                '<span class="placement-channel">' + p.channel + '</span>' +
-                '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
-              '</div>' +
-              '<span class="placement-spend">£' + spendValue + '</span>' +
-              '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-
-            // Add report flag click handler
-            var flagBtn = li.querySelector('.report-flag');
+            // Normal item - checkbox checked by default (Tier 2 Suspected)
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'placement-checkbox';
+            checkbox.checked = true;
+            checkbox.dataset.channel = p.channel;
+            checkbox.dataset.tier = 'tier2';
+            
+            // Add change listener to sync with Google Ads page highlighting
+            checkbox.addEventListener('change', function() {
+              chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0] && tabs[0].id) {
+                  chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'toggleHighlight',
+                    channel: p.channel,
+                    show: checkbox.checked
+                  });
+                }
+              });
+            });
+            
+            li.appendChild(checkbox);
+            
+            var infoDiv = document.createElement('div');
+            infoDiv.className = 'placement-info';
+            infoDiv.innerHTML = 
+              '<span class="placement-channel">' + p.channel + '</span>' +
+              '<span class="placement-category">' + (p.category || 'Unknown') + '</span>';
+            li.appendChild(infoDiv);
+            
+            var spendSpan = document.createElement('span');
+            spendSpan.className = 'placement-spend';
+            spendSpan.textContent = '£' + spendValue;
+            li.appendChild(spendSpan);
+            
+            var flagBtn = document.createElement('button');
+            flagBtn.className = 'report-flag';
+            flagBtn.title = 'Report to Sentry Engine';
+            flagBtn.innerHTML = '🚩';
             flagBtn.addEventListener('click', function() {
               reportChannel(p.channel, p.channel, p);
               flagBtn.classList.add('reported');
               flagBtn.title = 'Channel reported';
               showToast('Channel reported to Sentry Engine.', 'success');
-              // Refresh display to show captured state
               setTimeout(updateDisplay, 500);
             });
+            li.appendChild(flagBtn);
           }
 
           tier2List.appendChild(li);
@@ -834,8 +894,40 @@ document.addEventListener('DOMContentLoaded', function() {
   // Make showToast globally accessible
   window.showToast = showToast;
 
+  // Select All functionality
+  function attachSelectAllListeners() {
+    var selectAllTier1 = document.getElementById('select-all-tier1');
+    var selectAllTier2 = document.getElementById('select-all-tier2');
+    
+    if (selectAllTier1) {
+      selectAllTier1.addEventListener('change', function() {
+        var checkboxes = document.querySelectorAll('#tier1-list .placement-checkbox');
+        checkboxes.forEach(function(cb) {
+          if (!cb.disabled) {
+            cb.checked = selectAllTier1.checked;
+            // Trigger visual sync
+            cb.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+    }
+    
+    if (selectAllTier2) {
+      selectAllTier2.addEventListener('change', function() {
+        var checkboxes = document.querySelectorAll('#tier2-list .placement-checkbox');
+        checkboxes.forEach(function(cb) {
+          if (!cb.disabled) {
+            cb.checked = selectAllTier2.checked;
+            // Trigger visual sync
+            cb.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+    }
+  }
+  
   // Attach listeners on load
-  // Note: Select All checkboxes removed - dashboard is read-only, actions are global
+  attachSelectAllListeners();
 
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');

@@ -384,6 +384,35 @@
       return false; // Synchronous
     }
     
+    if (request.action === 'toggleHighlight') {
+      // Toggle highlight for a specific channel
+      const channel = request.channel;
+      const show = request.show;
+      
+      // Find the row with this channel
+      const rows = document.querySelectorAll('table tbody tr');
+      rows.forEach(row => {
+        const name = extractChannelName(row);
+        if (name === channel) {
+          if (show) {
+            // Restore highlight based on classification
+            const classification = classifyChannel(name);
+            if (classification.tier === 'tier1' || classification.tier === 'tier2') {
+              highlightRow(row, classification);
+            }
+          } else {
+            // Remove highlight
+            row.style.backgroundColor = '';
+            row.style.borderLeft = '';
+            row.style.opacity = '0.5';
+          }
+        }
+      });
+      
+      sendResponse({ success: true });
+      return false; // Synchronous
+    }
+    
     if (request.action === 'reloadData') {
       // Force reload data from storage
       initialize().then(() => {
