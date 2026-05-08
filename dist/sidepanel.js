@@ -678,17 +678,21 @@ document.addEventListener('DOMContentLoaded', function() {
   // Save
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
-      var csv = 'Tier,Channel,Spend,Category,Status\n';
+      // Header instruction and column headers with extra spaces for auto-width
+      var csv = 'Sentry Report: Copy the Placement ID column into your Google Ads Exclusion list.\n';
+      csv += 'Tier       ,Channel                ,Spend   ,Category    ,Placement ID\n';
+      
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
-          var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
-          csv += '"Confirmed","' + p.channel + '",' + p.spend.toFixed(2) + ',"' + (p.category || 'Unknown') + '","' + status + '"\n';
+          // Extract Placement ID from channel name (assumes it's the channel name or a URL)
+          var placementId = p.channel; // Use channel as the Placement ID
+          csv += 'Confirmed  ,"' + p.channel + '",' + p.spend.toFixed(2) + ',' + (p.category || 'Unknown') + ',"' + placementId + '"\n';
         });
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
-          var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
-          csv += '"Suspected","' + p.channel + '",' + p.spend.toFixed(2) + ',"' + (p.category || 'Unknown') + '","' + status + '"\n';
+          var placementId = p.channel;
+          csv += 'Suspected  ,"' + p.channel + '",' + p.spend.toFixed(2) + ',' + (p.category || 'Unknown') + ',"' + placementId + '"\n';
         });
       }
 
