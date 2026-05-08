@@ -91,22 +91,10 @@ document.addEventListener('DOMContentLoaded', function() {
     return !!globallyBlocked[channelId];
   }
 
-  // Filter out blocked channels from scan results
+  // Filter out blocked channels from scan results - REMOVED: Keep blocked visible
   function filterBlockedChannels(results) {
-    if (!results) return results;
-
-    var filtered = { ...results };
-    if (filtered.tier1) {
-      filtered.tier1 = filtered.tier1.filter(function(p) {
-        return !isChannelBlocked(p.channel);
-      });
-    }
-    if (filtered.tier2) {
-      filtered.tier2 = filtered.tier2.filter(function(p) {
-        return !isChannelBlocked(p.channel);
-      });
-    }
-    return filtered;
+    // Return all results including blocked - they will be shown with 'Blocked' status
+    return results;
   }
 
   // Export Sentry Data (for admin collection)
@@ -690,15 +678,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // Save
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
-      var csv = 'Tier,Channel,Spend,Category\n';
+      var csv = 'Tier,Channel,Spend,Category,Status\n';
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
-          csv += 'Confirmed,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + '\n';
+          var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
+          csv += 'Confirmed,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + ',' + status + '\n';
         });
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
-          csv += 'Suspected,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + '\n';
+          var status = isChannelBlocked(p.channel) ? 'Blocked' : 'Active';
+          csv += 'Suspected,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + ',' + status + '\n';
         });
       }
 
