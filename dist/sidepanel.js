@@ -472,6 +472,16 @@ document.addEventListener('DOMContentLoaded', function() {
       // Block checked channels
       checkedChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
+        
+        // Send message to grey out the row on Google Ads page
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (tabs[0] && tabs[0].id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: 'markBlocked',
+              channel: item.channel
+            });
+          }
+        });
       });
 
       // Refresh display to show captured state
@@ -732,19 +742,6 @@ document.addEventListener('DOMContentLoaded', function() {
             spendSpan.className = 'placement-spend';
             spendSpan.textContent = '£' + spendValue;
             li.appendChild(spendSpan);
-            
-            var flagBtn = document.createElement('button');
-            flagBtn.className = 'report-flag';
-            flagBtn.title = 'Report to Sentry Engine';
-            flagBtn.innerHTML = '🚩';
-            flagBtn.addEventListener('click', function() {
-              reportChannel(p.channel, p.channel, p);
-              flagBtn.classList.add('reported');
-              flagBtn.title = 'Channel reported';
-              showToast('Channel reported to Sentry Engine.', 'success');
-              setTimeout(updateDisplay, 500);
-            });
-            li.appendChild(flagBtn);
           }
 
           tier1List.appendChild(li);
@@ -813,19 +810,6 @@ document.addEventListener('DOMContentLoaded', function() {
             spendSpan.className = 'placement-spend';
             spendSpan.textContent = '£' + spendValue;
             li.appendChild(spendSpan);
-            
-            var flagBtn = document.createElement('button');
-            flagBtn.className = 'report-flag';
-            flagBtn.title = 'Report to Sentry Engine';
-            flagBtn.innerHTML = '🚩';
-            flagBtn.addEventListener('click', function() {
-              reportChannel(p.channel, p.channel, p);
-              flagBtn.classList.add('reported');
-              flagBtn.title = 'Channel reported';
-              showToast('Channel reported to Sentry Engine.', 'success');
-              setTimeout(updateDisplay, 500);
-            });
-            li.appendChild(flagBtn);
           }
 
           tier2List.appendChild(li);

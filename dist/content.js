@@ -213,57 +213,6 @@
     }
   }
   
-  // Add Report button to row
-  function addReportButton(row, channelName) {
-    // Check if button already exists
-    if (row.querySelector('.pmax-report-btn')) return;
-    
-    // Find the last td cell (actions cell)
-    const cells = row.querySelectorAll('td');
-    const lastCell = cells[cells.length - 1];
-    
-    if (!lastCell) {
-      console.log('[PMax] No cells found for row');
-      return;
-    }
-    
-    // Create report button
-    const btn = document.createElement('button');
-    btn.className = 'pmax-report-btn';
-    btn.title = 'Report this channel as low quality';
-    btn.innerHTML = '🚩';
-    btn.style.cssText = `
-      padding: 4px 8px;
-      font-size: 12px;
-      background: #f1f3f4;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
-    `;
-    
-    btn.onmouseover = () => {
-      btn.style.background = '#e8eaed';
-    };
-    btn.onmouseout = () => {
-      btn.style.background = '#f1f3f4';
-    };
-    
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      console.log('[PMax] Report clicked for:', channelName);
-      // Send message to background to open report modal in sidepanel
-      chrome.runtime.sendMessage({
-        action: 'openReportModal',
-        channel: channelName
-      });
-    };
-    
-    lastCell.appendChild(btn);
-    console.log('[PMax] Added report button for:', channelName);
-  }
-  
   // Scan
   async function scanPlacements() {
     console.log('[PMax] Scanning...', { isLicensed, dataLoaded, channelSetSize: channelSet.size });
@@ -333,9 +282,6 @@
         
         highlightRow(row, classification);
       }
-      
-      // Add Report button to ALL rows (including clean ones)
-      addReportButton(row, name);
     });
     
     console.log(`[PMax] Scan complete: ${tier1Placements.length} tier1, ${tier2Placements.length} tier2`);
@@ -425,6 +371,23 @@
         sendResponse({ success: false, error: err.message });
       });
       return true; // Asynchronous
+    }
+    
+    if (request.action === 'markBlocked') {
+      // Mark a channel as blocked (grey overlay)
+      const channel = request.channel;
+      const rows = document.querySelectorAll('table tbody tr');
+      rows.forEach(row => {
+        const name = extractChannelName(row);
+        if (name === channel) {
+          row.style.backgroundColor = '#e5e7eb';
+          row.style.borderLeft = '4px solid #9ca3af';
+          row.style.opacity = '0.6';
+          row.dataset.sentryBlocked = 'true';
+        }
+      });
+      sendResponse({ success: true });
+      return false;
     }
     
     if (request.action === 'ping') {
