@@ -170,26 +170,33 @@
   
   // Extract data - gets both display name and actual Placement ID from links
   function extractChannelData(row) {
+    console.log('[PMax] extractChannelData called for row:', row);
+    
     // Find the first cell with an anchor tag
     const link = row.querySelector('td a[href]');
+    console.log('[PMax] Found link:', link);
     
     if (link) {
-      const href = link.getAttribute('href'); // Use getAttribute to get raw href
+      const href = link.getAttribute('href');
       const displayName = link.textContent?.trim() || '';
       
       console.log('[PMax] Extracted:', { displayName, href });
+      alert('Extracted: ' + displayName + ' -> ' + href); // DEBUG ALERT
       
       return { 
         displayName: displayName,
-        placementId: href // Full URL as placement ID
+        placementId: href
       };
     }
+    
+    console.log('[PMax] No link found in row, using fallback');
     
     // Fallback: no link found - extract from text
     const cells = row.querySelectorAll('td');
     for (const cell of cells) {
       const text = cell.textContent?.trim();
       if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
+        console.log('[PMax] Fallback text:', text);
         return { displayName: text, placementId: text };
       }
     }
