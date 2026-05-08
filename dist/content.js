@@ -264,9 +264,13 @@
     
     const rows = document.querySelectorAll('table tbody tr, table tr');
     console.log('[PMax] Found', rows.length, 'rows');
+    alert('[PMax] Starting scan. Found ' + rows.length + ' rows'); // DEBUG
     
     rows.forEach((row, index) => {
-      if (row.querySelector('th')) return; // Skip header
+      if (row.querySelector('th')) {
+        console.log('[PMax] Skipping header row', index);
+        return; // Skip header
+      }
       
       const channelData = extractChannelData(row);
       if (!channelData.displayName) {
