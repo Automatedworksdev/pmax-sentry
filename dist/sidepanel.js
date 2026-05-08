@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[PMax Sentry] Sidepanel loaded');
-  
+
   // Check if extension context is valid
   if (!chrome.runtime || !chrome.runtime.id) {
     console.error('[PMax] Extension context invalid');
     return;
   }
-  
+
   // Get elements
   var licenseView = document.getElementById('license-view');
   var dashboardView = document.getElementById('dashboard-view');
@@ -28,14 +28,14 @@ document.addEventListener('DOMContentLoaded', function() {
   var dataVersion = document.getElementById('data-version');
   var lastSync = document.getElementById('last-sync');
   var categoryBreakdown = document.getElementById('category-breakdown');
-  
+
   var scanResults = { tier1: [], tier2: [], totalSpend: { tier1: 0, tier2: 0 }, categoryTotals: {} };
-  
+
   // ============================================
   // LOCAL SENTRY ENGINE - Global Block List
   // ============================================
   var globallyBlocked = {}; // In-memory cache
-  
+
   // Load globally blocked channels from storage
   function loadGloballyBlocked(callback) {
     chrome.storage.local.get(['globallyBlocked'], function(result) {
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (callback) callback();
     });
   }
-  
+
   // Save globally blocked channels to storage
   function saveGloballyBlocked(callback) {
     chrome.storage.local.set({ globallyBlocked: globallyBlocked }, function() {
@@ -54,14 +54,14 @@ document.addEventListener('DOMContentLoaded', function() {
       if (callback) callback();
     });
   }
-  
+
   // Report/Block a channel with upsert logic
   function reportChannel(channelId, channelName, channelData) {
     if (!channelId) return;
-    
+
     var now = Date.now();
     var existing = globallyBlocked[channelId];
-    
+
     if (existing) {
       // Upsert: increment report count
       existing.reportCount = (existing.reportCount || 1) + 1;
@@ -80,21 +80,21 @@ document.addEventListener('DOMContentLoaded', function() {
       };
       console.log('[Sentry] Added new channel to block list:', channelId);
     }
-    
+
     // Save to storage
     saveGloballyBlocked();
     return globallyBlocked[channelId];
   }
-  
+
   // Check if channel is blocked
   function isChannelBlocked(channelId) {
     return !!globallyBlocked[channelId];
   }
-  
+
   // Filter out blocked channels from scan results
   function filterBlockedChannels(results) {
     if (!results) return results;
-    
+
     var filtered = { ...results };
     if (filtered.tier1) {
       filtered.tier1 = filtered.tier1.filter(function(p) {
@@ -108,19 +108,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return filtered;
   }
-  
+
   // Export Sentry Data (for admin collection)
   function exportSentryData() {
     return JSON.stringify(globallyBlocked, null, 2);
   }
-  
+
   // Make available globally for console access
   window.exportSentryData = exportSentryData;
   window.globallyBlocked = globallyBlocked;
-  
+
   // Load blocked channels on startup
   loadGloballyBlocked();
-  
+
   // Safe message sender
   function sendMessage(message, callback) {
     if (!chrome.runtime || !chrome.runtime.id) {
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('[PMax] Send message failed:', e);
     }
   }
-  
+
   // Safe tab message sender with timeout and error handling
   function sendTabMessage(tabId, message, callback) {
     if (!chrome.runtime || !chrome.runtime.id) {
@@ -147,13 +147,13 @@ document.addEventListener('DOMContentLoaded', function() {
       if (callback) callback(null);
       return;
     }
-    
+
     var timeoutId = setTimeout(function() {
       console.warn('[PMax] Tab message timeout');
       if (callback) callback({ error: 'Message timeout' });
       callback = null; // Prevent double callback
     }, 5000); // 5 second timeout
-    
+
     try {
       chrome.tabs.sendMessage(tabId, message, function(response) {
         clearTimeout(timeoutId);
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   checkLicenseStatus();
-  
+
   function checkLicenseStatus() {
     sendMessage({ action: 'getLicenseStatus' }, function(response) {
       if (response && response.valid) {
@@ -191,17 +191,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   function showLicenseView() {
     licenseView.classList.remove('hidden');
     dashboardView.classList.add('hidden');
   }
-  
+
   function showDashboard() {
     licenseView.classList.add('hidden');
     dashboardView.classList.remove('hidden');
   }
-  
+
   function loadStats() {
     sendMessage({ action: 'getStats' }, function(stats) {
       sendMessage({ action: 'getSyncStatus' }, function(syncStatus) {
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
               channelCount.classList.remove('pulsing');
             }
           }
-          
+
           // Update dynamic tagline with version and count
           var taglineEl = document.getElementById('header-tagline');
           if (taglineEl && stats.channelCount > 0) {
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else if (taglineEl) {
             taglineEl.innerHTML = '<span class="count">0</span> junk channels blocked';
           }
-          
+
           if (dataVersion) dataVersion.textContent = stats.version || '2.2';
           if (lastSync) {
             if (syncStatus && syncStatus.syncStatus === 'completed' && stats.syncedAt) {
@@ -255,14 +255,14 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   function updateProgress(percent) {
     var progressFill = document.getElementById('progress-fill');
     var progressText = document.getElementById('progress-text');
     if (progressFill) progressFill.style.width = percent + '%';
     if (progressText) progressText.textContent = 'Downloading Database... ' + percent + '%';
   }
-  
+
   // Sync button
   var refreshBtn = document.getElementById('sync-btn');
   if (refreshBtn) {
@@ -271,14 +271,14 @@ document.addEventListener('DOMContentLoaded', function() {
       refreshBtn.disabled = true;
       if (refreshIcon) refreshIcon.classList.add('spinning');
       if (statusEl) statusEl.textContent = 'Syncing...';
-      
+
       var progressEl = document.getElementById('sync-progress');
       if (channelCount) {
         channelCount.textContent = '...';
         channelCount.classList.add('pulsing');
       }
       if (progressEl) progressEl.classList.remove('hidden');
-      
+
       sendMessage({ action: 'forceRefresh' }, function() {
         setTimeout(function() {
           sendMessage({ action: 'getSyncStatus' }, function(result) {
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   // Poll sync status
   var syncPollInterval = null;
   function startSyncPolling() {
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }, 1500);
   }
-  
+
   // License validation
   if (validateBtn) {
     validateBtn.addEventListener('click', function() {
@@ -333,17 +333,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (licenseStatus) licenseStatus.textContent = 'Enter a license key';
         return;
       }
-      
+
       validateBtn.disabled = true;
       validateBtn.innerHTML = '<span class="spinner"></span> Verifying...';
       if (licenseStatus) licenseStatus.textContent = '';
-      
+
       var startTime = Date.now();
-      
+
       sendMessage({ action: 'validateLicense', key: key }, function(response) {
         var elapsed = Date.now() - startTime;
         console.log('[PMax] License validation took ' + elapsed + 'ms');
-        
+
         if (response && response.valid) {
           validateBtn.innerHTML = '✓ Activated!';
           if (licenseStatus) {
@@ -364,22 +364,22 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   // Scan
   if (scanBtn) {
     scanBtn.addEventListener('click', function() {
       scanBtn.disabled = true;
       if (statusEl) statusEl.textContent = 'Checking data...';
-      
+
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (!tabs[0] || !tabs[0].id) {
           scanBtn.disabled = false;
           if (statusEl) statusEl.textContent = 'Error: No active tab';
           return;
         }
-        
+
         var tabId = tabs[0].id;
-        
+
         // First check if content script has data
         sendTabMessage(tabId, { action: 'ping' }, function(pingResponse) {
           if (!pingResponse || pingResponse.error) {
@@ -388,12 +388,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (statusEl) statusEl.textContent = 'Error: ' + (pingResponse ? pingResponse.error : 'No response');
             return;
           }
-          
+
           console.log('[PMax] Ping response:', pingResponse);
-          
+
           if (!pingResponse.dataLoaded || pingResponse.channelCount === 0) {
             if (statusEl) statusEl.textContent = 'Loading data...';
-            
+
             sendTabMessage(tabId, { action: 'reloadData' }, function(reloadResponse) {
               if (!reloadResponse || reloadResponse.error || !reloadResponse.success) {
                 scanBtn.disabled = false;
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (statusEl) statusEl.textContent = 'Data not loaded. Click Sync button.';
                 return;
               }
-              
+
               if (reloadResponse.dataLoaded && reloadResponse.channelCount > 0) {
                 performScan();
               } else {
@@ -412,31 +412,31 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             return;
           }
-          
+
           performScan();
         });
-        
+
         function performScan() {
           if (statusEl) statusEl.textContent = 'Scanning...';
-          
+
           sendTabMessage(tabId, { action: 'scanPlacements' }, function(response) {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Placements';
-            
+
             if (!response || response.error) {
               if (statusEl) statusEl.textContent = 'Error: ' + (response ? response.error : 'No response');
               return;
             }
-            
+
             if (response.needsLicense) {
               showLicenseView();
               return;
             }
-            
+
             // Filter out already blocked channels before storing
             scanResults = filterBlockedChannels(response);
             updateDisplay();
-            
+
             var total = (scanResults.counts && scanResults.counts.tier1 || 0) + (scanResults.counts && scanResults.counts.tier2 || 0);
             if (statusEl) statusEl.textContent = total > 0 ? 'Found ' + total + ' placements' : 'No waste found';
           });
@@ -444,12 +444,12 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   // Block Waste - Block ALL channels in Confirmed and Suspected (Global Action)
   if (blockWasteBtn) {
     blockWasteBtn.addEventListener('click', function() {
       var allChannels = [];
-      
+
       // Get ALL items from both lists (not just checked)
       document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
         if (!item.classList.contains('sentry-captured')) {
@@ -461,29 +461,29 @@ document.addEventListener('DOMContentLoaded', function() {
           allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
-      
+
       if (allChannels.length === 0) {
         showToast('No channels to block.');
         return;
       }
-      
+
       // Block all channels
       allChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
-      
+
       // Refresh display to show captured state
       updateDisplay();
-      
+
       showToast(allChannels.length + ' channel(s) blocked.');
     });
   }
-  
+
   // Feed the Sentry - Report ALL channels to global database (Global Action)
   if (feedSentryBtn) {
     feedSentryBtn.addEventListener('click', function() {
       var allChannels = [];
-      
+
       // Get ALL items from both lists (not just checked)
       document.querySelectorAll('#tier1-list .placement-item').forEach(function(item) {
         if (!item.classList.contains('sentry-captured')) {
@@ -495,24 +495,24 @@ document.addEventListener('DOMContentLoaded', function() {
           allChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
         }
       });
-      
+
       if (allChannels.length === 0) {
         showToast('No channels to report.');
         return;
       }
-      
+
       // Report all channels
       allChannels.forEach(function(item) {
         reportChannel(item.channel, item.channel, { tier: item.tier });
       });
-      
+
       // Refresh display to show captured state
       updateDisplay();
-      
+
       showToast(allChannels.length + ' channel(s) fed to Sentry database.');
     });
   }
-  
+
   // Toast notification function
   function showToast(message) {
     // Remove existing toast
@@ -520,19 +520,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (existingToast) {
       existingToast.remove();
     }
-    
+
     var toast = document.createElement('div');
     toast.id = 'pmax-toast';
     toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#374151;color:white;padding:12px 24px;border-radius:8px;font-size:13px;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:toastSlideUp 0.3s ease;';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(function() {
       toast.style.animation = 'toastSlideDown 0.3s ease';
       setTimeout(function() { toast.remove(); }, 300);
     }, 3000);
   }
-  
+
   // Exclusion Modal function
   function showExclusionModal(channelList) {
     // Remove existing modal
@@ -540,96 +540,96 @@ document.addEventListener('DOMContentLoaded', function() {
     if (existingModal) {
       existingModal.remove();
     }
-    
+
     // Create modal overlay
     var overlay = document.createElement('div');
     overlay.id = 'pmax-exclusion-modal';
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:modalFadeIn 0.2s ease;';
-    
+
     // Create modal content
     var modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:modalSlideUp 0.3s ease;';
-    
+
     // Modal header
     var header = document.createElement('div');
     header.style.cssText = 'padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;';
     header.innerHTML = '<h3 style="margin:0;font-size:16px;font-weight:600;color:#111827;">🚫 Exclusion List (' + channelList.length + ' channels)</h3>' +
                        '<button id="modal-close" style="background:none;border:none;cursor:pointer;font-size:20px;color:#6b7280;padding:4px;border-radius:4px;">&times;</button>';
-    
+
     // Modal body
     var body = document.createElement('div');
     body.style.cssText = 'padding:20px 24px;flex:1;overflow:hidden;display:flex;flex-direction:column;';
-    
+
     var textarea = document.createElement('textarea');
     textarea.id = 'exclusion-textarea';
     textarea.style.cssText = 'width:100%;flex:1;min-height:200px;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:12px;resize:none;white-space:pre;overflow:auto;';
     textarea.value = channelList.join('\n');
-    
+
     var infoText = document.createElement('div');
     infoText.style.cssText = 'font-size:11px;color:#6b7280;margin-top:8px;';
     infoText.innerHTML = '<span style="color:#ef4444;">●</span> Confirmed: ' + (scanResults.tier1 && scanResults.tier1.length || 0) + ' | <span style="color:#f59e0b;">●</span> Suspected: ' + (scanResults.tier2 && scanResults.tier2.length || 0);
-    
+
     body.appendChild(textarea);
     body.appendChild(infoText);
-    
+
     // Modal footer
     var footer = document.createElement('div');
     footer.style.cssText = 'padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;gap:12px;justify-content:flex-end;';
-    
+
     var copyBtn = document.createElement('button');
     copyBtn.id = 'copy-exclusion-btn';
     copyBtn.style.cssText = 'background:#1a73e8;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;';
     copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>Copy to Clipboard';
-    
+
     var closeBtn = document.createElement('button');
     closeBtn.id = 'close-modal-btn';
     closeBtn.style.cssText = 'background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;';
     closeBtn.textContent = 'Close';
-    
+
     footer.appendChild(copyBtn);
     footer.appendChild(closeBtn);
-    
+
     // Assemble modal
     modal.appendChild(header);
     modal.appendChild(body);
     modal.appendChild(footer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-    
+
     // Focus textarea and select all
     textarea.focus();
     textarea.select();
-    
+
     // Event listeners
     document.getElementById('modal-close').addEventListener('click', function() {
       overlay.remove();
     });
-    
+
     document.getElementById('close-modal-btn').addEventListener('click', function() {
       overlay.remove();
     });
-    
+
     copyBtn.addEventListener('click', function() {
       textarea.select();
       document.execCommand('copy');
-      
+
       // Show copied feedback
       copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!';
       copyBtn.style.background = '#10b981';
-      
+
       setTimeout(function() {
         copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>Copy to Clipboard';
         copyBtn.style.background = '#1a73e8';
       }, 2000);
     });
-    
+
     // Close on overlay click
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) {
         overlay.remove();
       }
     });
-    
+
     // Close on Escape key
     document.addEventListener('keydown', function escapeHandler(e) {
       if (e.key === 'Escape') {
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   // Save
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
@@ -653,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
           csv += 'Suspected,' + p.channel + ',' + p.spend.toFixed(2) + ',' + p.category + '\n';
         });
       }
-      
+
       var blob = new Blob([csv], { type: 'text/csv' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -662,13 +662,13 @@ document.addEventListener('DOMContentLoaded', function() {
       a.click();
     });
   }
-  
+
   function updateDisplay() {
     if (tier1Count) tier1Count.textContent = (scanResults.counts && scanResults.counts.tier1) || 0;
     if (tier2Count) tier2Count.textContent = (scanResults.counts && scanResults.counts.tier2) || 0;
     if (tier1Spend) tier1Spend.textContent = '£' + Number((scanResults.totalSpend && scanResults.totalSpend.tier1) || 0).toFixed(2);
     if (tier2Spend) tier2Spend.textContent = '£' + Number((scanResults.totalSpend && scanResults.totalSpend.tier2) || 0).toFixed(2);
-    
+
     if (tier1List) {
       tier1List.innerHTML = '';
       if (scanResults.tier1 && scanResults.tier1.length) {
@@ -676,18 +676,17 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
-          
+
           // Check if already blocked
           var isBlocked = isChannelBlocked(p.channel);
           var blockedData = globallyBlocked[p.channel];
-          
+
           var spendValue = Number(p.spend || 0).toFixed(2);
-          
+
           if (isBlocked) {
             // Show as captured/blocked
             li.classList.add('sentry-captured');
-            li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" disabled>' +
+            li.innerHTML =
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">Blocked • Reported ' + (blockedData.reportCount || 1) + ' times</span>' +
@@ -695,16 +694,15 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item - checkbox is unchecked by default (untick to save from blocking)
-            li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" data-tier="tier1" data-index="' + index + '">' +
+            // Normal item - no checkbox, review only
+            li.innerHTML =
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-            
+
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
             flagBtn.addEventListener('click', function() {
@@ -716,14 +714,14 @@ document.addEventListener('DOMContentLoaded', function() {
               setTimeout(updateDisplay, 500);
             });
           }
-          
+
           tier1List.appendChild(li);
         });
       } else {
         tier1List.innerHTML = '<li style="color:#999;text-align:center;padding:20px;">No confirmed waste found</li>';
       }
     }
-    
+
     if (tier2List) {
       tier2List.innerHTML = '';
       if (scanResults.tier2 && scanResults.tier2.length) {
@@ -731,18 +729,17 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
-          
+
           // Check if already blocked
           var isBlocked = isChannelBlocked(p.channel);
           var blockedData = globallyBlocked[p.channel];
-          
+
           var spendValue = Number(p.spend || 0).toFixed(2);
-          
+
           if (isBlocked) {
             // Show as captured/blocked
             li.classList.add('sentry-captured');
-            li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" disabled>' +
+            li.innerHTML =
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">Blocked • Reported ' + (blockedData.reportCount || 1) + ' times</span>' +
@@ -750,16 +747,15 @@ document.addEventListener('DOMContentLoaded', function() {
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<span class="sentry-badge blocked">Blocked</span>';
           } else {
-            // Normal item - checkbox is unchecked by default (untick to save from blocking)
-            li.innerHTML = 
-              '<input type="checkbox" class="placement-checkbox" data-tier="tier2" data-index="' + index + '">' +
+            // Normal item - no checkbox, review only
+            li.innerHTML =
               '<div class="placement-info">' +
                 '<span class="placement-channel">' + p.channel + '</span>' +
                 '<span class="placement-category">' + (p.category || 'Unknown') + '</span>' +
               '</div>' +
               '<span class="placement-spend">£' + spendValue + '</span>' +
               '<button class="report-flag" title="Report to Sentry Engine">🚩</button>';
-            
+
             // Add report flag click handler
             var flagBtn = li.querySelector('.report-flag');
             flagBtn.addEventListener('click', function() {
@@ -771,14 +767,14 @@ document.addEventListener('DOMContentLoaded', function() {
               setTimeout(updateDisplay, 500);
             });
           }
-          
+
           tier2List.appendChild(li);
         });
       } else {
         tier2List.innerHTML = '<li style="color:#999;text-align:center;padding:20px;">No suspected waste found</li>';
       }
     }
-    
+
     if (categoryBreakdown && scanResults.categoryTotals) {
       categoryBreakdown.innerHTML = '';
       var categories = Object.entries(scanResults.categoryTotals).sort(function(a, b) { return b[1] - a[1]; });
@@ -795,17 +791,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       }
     }
-    
-    // Reset button states - disabled until items are selected
-    if (blockWasteBtn) blockWasteBtn.disabled = true;
-    if (feedSentryBtn) feedSentryBtn.disabled = true;
+
+    // Buttons are always enabled (global actions)
+    if (blockWasteBtn) blockWasteBtn.disabled = false;
+    if (feedSentryBtn) feedSentryBtn.disabled = false;
     if (saveBtn) saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
-    
-    // Re-attach select all listeners after lists are populated
-    attachSelectAllListeners();
-    updateSelectedCount(); // Update button states based on selection
   }
-  
+
   // Listen for sync completion messages from background
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'syncComplete') {
@@ -823,14 +815,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return true;
   });
-  
+
   // Toast notification function
   function showToast(message, type) {
     var toast = document.createElement('div');
     toast.className = 'toast-notification' + (type ? ' ' + type : '');
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(function() {
       toast.classList.add('hide');
       setTimeout(function() {
@@ -838,48 +830,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 300);
     }, 3000);
   }
-  
+
   // Make showToast globally accessible
   window.showToast = showToast;
-  
-  // Select All functionality - attach after DOM is ready
-  function attachSelectAllListeners() {
-    var selectAllTier1 = document.getElementById('select-all-tier1');
-    var selectAllTier2 = document.getElementById('select-all-tier2');
-    
-    if (selectAllTier1) {
-      // Remove existing listener to prevent duplicates
-      selectAllTier1.removeEventListener('change', handleTier1SelectAll);
-      selectAllTier1.addEventListener('change', handleTier1SelectAll);
-    }
-    
-    if (selectAllTier2) {
-      selectAllTier2.removeEventListener('change', handleTier2SelectAll);
-      selectAllTier2.addEventListener('change', handleTier2SelectAll);
-    }
-  }
-  
-  function handleTier1SelectAll() {
-    var selectAllTier1 = document.getElementById('select-all-tier1');
-    var checkboxes = document.querySelectorAll('#tier1-list .placement-checkbox');
-    checkboxes.forEach(function(cb) {
-      cb.checked = selectAllTier1.checked;
-    });
-    updateSelectedCount();
-  }
-  
-  function handleTier2SelectAll() {
-    var selectAllTier2 = document.getElementById('select-all-tier2');
-    var checkboxes = document.querySelectorAll('#tier2-list .placement-checkbox');
-    checkboxes.forEach(function(cb) {
-      cb.checked = selectAllTier2.checked;
-    });
-    updateSelectedCount();
-  }
-  
+
   // Attach listeners on load
-  attachSelectAllListeners();
-  
+  // Note: Select All checkboxes removed - dashboard is read-only, actions are global
+
   // Debug: Ensure buttons are enabled
   console.log('[PMax] Initializing buttons...');
   console.log('[PMax] blockWasteBtn found:', !!blockWasteBtn);

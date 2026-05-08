@@ -172,7 +172,6 @@
   function extractChannelName(row) {
     const cells = row.querySelectorAll('td');
     for (const cell of cells) {
-      if (cell.querySelector('input[type="checkbox"]')) continue;
       const text = cell.textContent?.trim();
       if (text && text.length > 2 && !text.match(/^[\d,]+$/)) {
         return text.replace(/\s*(Confirmed Junk|Suspected Junk|Clean)$/i, '').trim();
@@ -352,21 +351,10 @@
     };
   }
   
-  // Exclude
+  // Exclude - DEPRECATED: Now managed through dashboard only
   function performExclusion() {
-    const all = [...tier1Placements];
-    if (highlightSuspected) all.push(...tier2Placements);
-    
-    let count = 0;
-    all.forEach(p => {
-      const checkbox = p.row.querySelector('input[type="checkbox"]');
-      if (checkbox && !checkbox.checked) {
-        checkbox.click();
-        count++;
-      }
-    });
-    
-    return { success: true, excludedCount: count };
+    console.log('[PMax] Exclusion now managed through PMax Sentry Dashboard');
+    return { success: true, message: 'Use PMax Sentry Dashboard to exclude channels' };
   }
   
   // Message handlers
