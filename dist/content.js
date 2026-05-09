@@ -124,19 +124,25 @@
     
     const normalized = channelName.toLowerCase().trim();
     
-    // Extract ID from URL if it's a YouTube/Play Store URL
-    let channelId = normalized;
-    const ytMatch = normalized.match(/\/channel\/(uc[\w-]+)/);
-    const appMatch = normalized.match(/\?id=([\w.]+)/);
-    if (ytMatch) channelId = ytMatch[1];
-    else if (appMatch) channelId = appMatch[1];
+    // Extract ID from URL if it's a YouTube/Play Store URL (keep original case for ID)
+    let channelIdLower = normalized;
+    let channelIdOriginal = channelName; // Keep original case
+    const ytMatch = channelName.match(/\/channel\/(UC[\w-]+)/i);
+    const appMatch = channelName.match(/\?id=([\w.]+)/);
+    if (ytMatch) {
+      channelIdLower = ytMatch[1].toLowerCase();
+      channelIdOriginal = ytMatch[1]; // Keep UC prefix uppercase
+    } else if (appMatch) {
+      channelIdLower = appMatch[1].toLowerCase();
+      channelIdOriginal = appMatch[1];
+    }
     
-    console.log('[PMax] classifyChannel:', { normalized, channelId, channelSetSize: channelSet.size });
+    console.log('[PMax] classifyChannel:', { normalized, channelIdLower, channelIdOriginal, channelSetSize: channelSet.size });
     
-    // Tier 1: Exact match (check both full name and extracted ID)
-    if (channelSet.has(normalized) || channelSet.has(channelId)) {
-      const category = categoryMap[normalized] || categoryMap[channelId] || 'General';
-      console.log('[PMax] Tier 1 match:', channelId);
+    // Tier 1: Exact match (check both full name lowercase and extracted ID with original case)
+    if (channelSet.has(normalized) || channelSet.has(channelIdOriginal) || channelSet.has(channelIdLower)) {
+      const category = categoryMap[normalized] || categoryMap[channelIdOriginal] || categoryMap[channelIdLower] || 'General';
+      console.log('[PMax] Tier 1 match:', channelIdOriginal);
       return { tier: 'tier1', category };
     }
     
@@ -152,7 +158,7 @@
       }
     }
     
-    console.log('[PMax] No match for:', channelId);
+    console.log('[PMax] No match for:', channelIdOriginal);
     return { tier: 'none' };
   }
   
@@ -290,8 +296,13 @@
       
       console.log('[PMax] Row', index, 'channel:', channelData.displayName, 'ID:', channelData.placementId);
       
-      // Classify using the placement ID if available, otherwise use display name
-      const classification = classifyChannel(channelData.placementId || channelData.displayName);
+      // Classify using the DISPLAY NAME first (matches database), then try placementId for Tier 2 keywords
+      let classification = classifyChannel(channelData.displayName);
+      
+      // If no Tier 1 match on display name, also try the placementId/URL for Tier 2 keyword matching
+      if (classification.tier === 'none' && channelData.placementId && channelData.placementId !== channelData.displayName) {
+        classification = classifyChannel(channelData.placementId);
+      }
       console.log('[PMax] Classification:', classification);
       
       if (classification.tier === 'tier1' || classification.tier === 'tier2') {

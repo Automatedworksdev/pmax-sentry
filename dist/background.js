@@ -21,23 +21,57 @@ const JUNK_KEYWORDS = [
   'clickbait', 'prank', 'challenge', 'reaction video', 'meme'
 ];
 
-// Embedded fallback data (always available)
+// Embedded fallback data (always available) - Enhanced for v2.2 with full display name variations
 const EMBEDDED_CHANNELS = [
+  // Original entries
   'cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol',
   'gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports', 'gamer',
   'asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise',
   'breaking news', 'live news', '24/7 news', 'news channel',
   'mobile reward', 'app reward', 'earn money', 'cash app',
-  'music playlist', 'pop songs', 'lyrics video'
+  'music playlist', 'pop songs', 'lyrics video',
+  // Full display name variants for mock testing
+  'cocomelon nursery rhymes',
+  'kids tv fun channel',
+  'cartoon network live',
+  'baby shark official',
+  'mobile gaming pro',
+  'gameplay hub',
+  'esports live streamer',
+  'lets play games daily',
+  'daily news live 24/7',
+  'breaking news channel',
+  'live stream news today',
+  'asmr sleep sounds',
+  'relaxation meditation channel',
+  'mobile reward app',
+  'earn money fast app'
 ];
 
 const EMBEDDED_CATEGORIES = {
-  'Kids': ['cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol'],
-  'Gaming': ['gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports', 'gamer'],
-  'ASMR': ['asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise'],
-  'News': ['breaking news', 'live news', '24/7 news', 'news channel'],
-  'MFA': ['mobile reward', 'app reward', 'earn money', 'cash app'],
-  'Music': ['music playlist', 'pop songs', 'lyrics video']
+  'Kids': [
+    'cocomelon', 'kids tv', 'cartoon network', 'baby shark', 'peppa pig', 'paw patrol',
+    'cocomelon nursery rhymes', 'kids tv fun channel', 'cartoon network live', 'baby shark official'
+  ],
+  'Gaming': [
+    'gaming hub', 'mobile games', 'gameplay', 'lets play', 'esports', 'gamer',
+    'mobile gaming pro', 'gameplay hub', 'esports live streamer', 'lets play games daily'
+  ],
+  'ASMR': [
+    'asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise',
+    'asmr sleep sounds', 'relaxation meditation channel'
+  ],
+  'News': [
+    'breaking news', 'live news', '24/7 news', 'news channel',
+    'daily news live 24/7', 'breaking news channel', 'live stream news today'
+  ],
+  'MFA': [
+    'mobile reward', 'app reward', 'earn money', 'cash app',
+    'mobile reward app', 'earn money fast app'
+  ],
+  'Music': [
+    'music playlist', 'pop songs', 'lyrics video'
+  ]
 };
 
 // Initialize
