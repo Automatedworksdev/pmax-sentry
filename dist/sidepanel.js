@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', function() {
   var tier1Spend = document.getElementById('tier1-spend');
   var tier2Spend = document.getElementById('tier2-spend');
   var channelCount = document.getElementById('channel-count');
+  
+  // Fetch count from proxy
+  fetch('https://pmax-sentry-proxy-git-master-automatedworksdevs-projects.vercel.app/api/stats')
+    .then(r => r.json())
+    .then(data => {
+      if (channelCount) channelCount.textContent = data.total.toLocaleString();
+    })
+    .catch(() => {
+      if (channelCount) channelCount.textContent = '51,448';
+    });
+  
   var dataVersion = document.getElementById('data-version');
   var lastSync = document.getElementById('last-sync');
   var categoryBreakdown = document.getElementById('category-breakdown');
