@@ -1,10 +1,17 @@
-// PMax Sentry Content Script v2.2 - Intelligence Engine
-// Category tracking, community reporting support
+/**
+ * PMax Sentry Content Script v3.0 - Proxy Architecture
+ * 
+ * Changes in v3.0:
+ * - No local channel database
+ * - Collects all channels first, then sends ONE bulk request to proxy
+ * - All classifications come from proxy server
+ * - Caches results in memory only (no localStorage)
+ */
 
 (function() {
   'use strict';
   
-  console.log('[PMax Sentry] Content script v2.2 loaded');
+  console.log('[PMax Sentry] Content script v3.0 loaded (Proxy Architecture)');
   
   // Safe mode detection - include mock test file
   const isSafeMode = () => {
@@ -24,17 +31,15 @@
   
   // State
   let isLicensed = false;
-  let channelSet = new Set();
-  let categoryMap = {}; // channel -> category
-  let suspectedKeywords = [];
-  let dataLoaded = false;
+  let licenseKey = null;
+  let cachedClassifications = {}; // channel -> classification
   let highlightSuspected = true;
   
   // Results
   let tier1Placements = [];
   let tier2Placements = [];
   let totalSpend = { tier1: 0, tier2: 0 };
-  let categoryTotals = {}; // category -> { count, spend }
+  let categoryTotals = {};
   
   // Colors
   const COLORS = {
@@ -54,54 +59,15 @@
     'General': '#6b7280'
   };
   
-  // Initialize with retry
+  // Initialize
   async function initialize() {
     console.log('[PMax] Initializing content script...');
     
-    // Try to load data multiple times
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const result = await chrome.storage.local.get([
-        'licensed', 
-        'pmaxData', 
-        'suspectedKeywords'
-      ]);
-      
-      console.log('[PMax] Storage data (attempt ' + attempt + '):', {
-        licensed: result.licensed,
-        pmaxDataExists: !!result.pmaxData,
-        pmaxDataChannels: result.pmaxData?.channels?.length,
-        suspectedKeywords: result.suspectedKeywords?.length
-      });
-      
-      isLicensed = result.licensed === true;
-      
-      if (isLicensed && result.pmaxData && result.pmaxData.channels?.length > 0) {
-        const data = result.pmaxData;
-        channelSet = new Set(data.channels || []);
-        
-        // Build category map
-        if (data.categories) {
-          Object.entries(data.categories).forEach(([cat, channels]) => {
-            channels.forEach(ch => {
-              categoryMap[ch] = cat;
-            });
-          });
-        }
-        
-        suspectedKeywords = result.suspectedKeywords || [];
-        dataLoaded = true;
-        
-        console.log(`[PMax] Loaded ${channelSet.size} channels, ${suspectedKeywords.length} keywords`);
-        break; // Success - exit retry loop
-      } else {
-        console.log('[PMax] No data yet - waiting...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-      }
-    }
+    const result = await chrome.storage.local.get(['licensed', 'licenseKey']);
+    isLicensed = result.licensed === true;
+    licenseKey = result.licenseKey;
     
-    if (!dataLoaded) {
-      console.log('[PMax] Failed to load data after 3 attempts');
-    }
+    console.log(`[PMax] License status: ${isLicensed ? 'Active' : 'Inactive'}`);
     
     injectBadge();
   }
@@ -112,93 +78,17 @@
     
     const badge = document.createElement('div');
     badge.id = 'pmax-sentry-badge';
-    badge.innerHTML = `<div style="position:fixed;top:12px;right:12px;background:${isLicensed ? 'rgba(26,115,232,0.9)' : 'rgba(156,163,175,0.9)'};color:white;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:500;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);">${isLicensed ? '🛡️ Sentry Active' : '🔒 License Required'}</div>`;
+    badge.innerHTML = `<div style="position:fixed;top:12px;right:12px;background:${isLicensed ? 'rgba(26,115,232,0.9)' : 'rgba(156,163,175,0.9)'};color:white;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:500;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);">${isLicensed ? '🛡️ Sentry Active (v3.0)' : '🔒 License Required'}</div>`;
     document.body.appendChild(badge);
   }
   
-  // Classify channel
-  function classifyChannel(channelName) {
-    if (!isLicensed || !dataLoaded) {
-      return { tier: 'unlicensed' };
-    }
-    
-    const normalized = channelName.toLowerCase().trim();
-    
-    // Extract ID from URL if it's a YouTube/Play Store URL (keep original case for ID)
-    let channelIdLower = normalized;
-    let channelIdOriginal = channelName; // Keep original case
-    const ytMatch = channelName.match(/\/channel\/(UC[\w-]+)/i);
-    const appMatch = channelName.match(/\?id=([\w.]+)/);
-    if (ytMatch) {
-      channelIdLower = ytMatch[1].toLowerCase();
-      channelIdOriginal = ytMatch[1]; // Keep UC prefix uppercase
-    } else if (appMatch) {
-      channelIdLower = appMatch[1].toLowerCase();
-      channelIdOriginal = appMatch[1];
-    }
-    
-    console.log('[PMax] classifyChannel:', { normalized, channelIdLower, channelIdOriginal, channelSetSize: channelSet.size });
-    
-    // Tier 1: Exact match (check both full name lowercase and extracted ID with original case)
-    if (channelSet.has(normalized) || channelSet.has(channelIdOriginal) || channelSet.has(channelIdLower)) {
-      const category = categoryMap[normalized] || categoryMap[channelIdOriginal] || categoryMap[channelIdLower] || 'General';
-      console.log('[PMax] Tier 1 match:', channelIdOriginal);
-      return { tier: 'tier1', category };
-    }
-    
-    // Tier 2: Keyword match
-    if (highlightSuspected) {
-      for (const keyword of suspectedKeywords) {
-        if (normalized.includes(keyword)) {
-          // Infer category from keyword
-          const category = inferCategory(keyword);
-          console.log('[PMax] Tier 2 match:', keyword);
-          return { tier: 'tier2', keyword, category };
-        }
-      }
-    }
-    
-    console.log('[PMax] No match for:', channelIdOriginal);
-    return { tier: 'none' };
-  }
-  
-  // Infer category from keyword
-  function inferCategory(keyword) {
-    const kw = keyword.toLowerCase();
-    if (['kids', 'children', 'toddler', 'baby', 'nursery', 'cartoon', 'cocomelon', 'peppa', 'paw patrol', 'disney junior', 'nick jr', 'baby shark'].includes(kw)) {
-      return 'Kids';
-    }
-    if (['gaming', 'gameplay', 'lets play', 'gamer', 'esports', 'twitch', 'streamer'].includes(kw)) {
-      return 'Gaming';
-    }
-    if (['mobile reward', 'app reward', 'offer wall', 'get paid', 'earn money', 'cash app'].includes(kw)) {
-      return 'MFA';
-    }
-    if (['asmr', 'sleep sounds', 'relaxation', 'meditation', 'white noise', 'rain sounds'].includes(kw)) {
-      return 'ASMR';
-    }
-    if (['breaking news', 'live news', '24/7 news', 'news live'].includes(kw)) {
-      return 'News';
-    }
-    if (['music playlist', 'lyrics video', 'top hits', 'pop songs', 'music video'].includes(kw)) {
-      return 'Music';
-    }
-    return 'General';
-  }
-  
-  // Extract data - gets both display name and actual Placement ID from links
+  // Extract data from row
   function extractChannelData(row) {
-    console.log('[PMax] extractChannelData called for row:', row);
-    
-    // Find the first cell with an anchor tag
     const link = row.querySelector('td a[href]');
-    console.log('[PMax] Found link:', link);
     
     if (link) {
       const href = link.getAttribute('href');
       const displayName = link.textContent?.trim() || '';
-      
-      console.log('[PMax] Extracted:', { displayName, href });
       
       return { 
         displayName: displayName,
@@ -206,25 +96,16 @@
       };
     }
     
-    console.log('[PMax] No link found in row, using fallback');
-    
-    // Fallback: no link found - extract from text
+    // Fallback: no link found
     const cells = row.querySelectorAll('td');
     for (const cell of cells) {
       const text = cell.textContent?.trim();
       if (text && text.length > 2 && !text.match(/^[\d,]+$/) && !text.match(/[£$€]/)) {
-        console.log('[PMax] Fallback text:', text);
         return { displayName: text, placementId: text };
       }
     }
     
     return { displayName: '', placementId: '' };
-  }
-  
-  // Legacy function for compatibility
-  function extractChannelName(row) {
-    const data = extractChannelData(row);
-    return data.displayName;
   }
   
   function extractSpend(row) {
@@ -238,7 +119,7 @@
     return 0;
   }
   
-  // Highlight row with category color
+  // Highlight row
   function highlightRow(row, classification) {
     const colors = classification.tier === 'tier1' ? COLORS.tier1 : COLORS.tier2;
     const catColor = CATEGORY_COLORS[classification.category] || CATEGORY_COLORS['General'];
@@ -248,9 +129,9 @@
     row.dataset.sentryTier = classification.tier;
     row.dataset.sentryCategory = classification.category;
     
-    // Add category badge to first cell (Placement name)
+    // Add category badge to first cell
     const cells = row.querySelectorAll('td');
-    const nameCell = cells[0]; // First cell is now the name (Placement column)
+    const nameCell = cells[0];
     if (nameCell && !nameCell.querySelector('.sentry-cat-badge')) {
       const badge = document.createElement('span');
       badge.className = 'sentry-cat-badge';
@@ -260,104 +141,143 @@
     }
   }
   
-  // Scan
+  // Scan - NEW: Collect all channels first, then batch classify
   async function scanPlacements() {
-    console.log('[PMax] Scanning...', { isLicensed, dataLoaded, channelSetSize: channelSet.size });
+    console.log('[PMax] Starting scan...', { isLicensed });
     
     if (!isLicensed) {
-      console.log('[PMax] Not licensed');
       return { error: 'License required', needsLicense: true };
     }
     
-    if (!dataLoaded) {
-      console.log('[PMax] Data not loaded');
-      return { error: 'Data not loaded. Click Sync.', needsRefresh: true };
-    }
-    
+    // Reset results
     tier1Placements = [];
     tier2Placements = [];
     totalSpend = { tier1: 0, tier2: 0 };
     categoryTotals = {};
+    cachedClassifications = {};
     
+    // Step 1: Collect all channels from the page
     const rows = document.querySelectorAll('table tbody tr, table tr');
-    console.log('[PMax] Found', rows.length, 'rows');
+    const channelsToClassify = [];
+    const rowData = []; // Keep reference to row for later
+    
+    console.log(`[PMax] Found ${rows.length} rows`);
     
     rows.forEach((row, index) => {
-      if (row.querySelector('th')) {
-        console.log('[PMax] Skipping header row', index);
-        return; // Skip header
-      }
+      if (row.querySelector('th')) return; // Skip header
       
       const channelData = extractChannelData(row);
-      if (!channelData.displayName) {
-        console.log('[PMax] No name found for row', index);
+      if (!channelData.displayName) return;
+      
+      channelsToClassify.push({
+        name: channelData.displayName,
+        url: channelData.placementId
+      });
+      
+      rowData.push({
+        row: row,
+        channel: channelData.displayName,
+        placementId: channelData.placementId,
+        spend: extractSpend(row)
+      });
+    });
+    
+    console.log(`[PMax] Collected ${channelsToClassify.length} channels to classify`);
+    
+    if (channelsToClassify.length === 0) {
+      return { success: true, tier1: [], tier2: [], counts: { tier1: 0, tier2: 0 } };
+    }
+    
+    // Step 2: Send bulk classification request to background script (which sends to proxy)
+    const classificationResult = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({
+        action: 'classifyChannels',
+        channels: channelsToClassify,
+        licenseKey: licenseKey
+      }, (response) => {
+        resolve(response || { error: 'No response from background' });
+      });
+    });
+    
+    if (classificationResult.error) {
+      console.error('[PMax] Classification error:', classificationResult.error);
+      return { error: classificationResult.error };
+    }
+    
+    // Step 3: Build lookup map from results
+    const classifications = classificationResult.results || [];
+    classifications.forEach(c => {
+      cachedClassifications[c.name.toLowerCase()] = c;
+    });
+    
+    console.log(`[PMax] Received ${classifications.length} classifications`);
+    
+    // Step 4: Apply classifications to rows
+    rowData.forEach(({ row, channel, placementId, spend }) => {
+      const normalizedChannel = channel.toLowerCase();
+      const classification = cachedClassifications[normalizedChannel];
+      
+      if (!classification || classification.tier === 'none') {
         return;
       }
       
-      console.log('[PMax] Row', index, 'channel:', channelData.displayName, 'ID:', channelData.placementId);
+      const placement = { 
+        channel: channel,
+        placementId: placementId,
+        spend, 
+        row,
+        category: classification.category,
+        keyword: classification.keyword
+      };
       
-      // Classify using the DISPLAY NAME first (matches database), then try placementId for Tier 2 keywords
-      let classification = classifyChannel(channelData.displayName);
-      
-      // If no Tier 1 match on display name, also try the placementId/URL for Tier 2 keyword matching
-      if (classification.tier === 'none' && channelData.placementId && channelData.placementId !== channelData.displayName) {
-        classification = classifyChannel(channelData.placementId);
+      if (classification.tier === 'tier1') {
+        tier1Placements.push(placement);
+        totalSpend.tier1 += spend;
+      } else if (classification.tier === 'tier2') {
+        tier2Placements.push(placement);
+        totalSpend.tier2 += spend;
       }
-      console.log('[PMax] Classification:', classification);
       
-      if (classification.tier === 'tier1' || classification.tier === 'tier2') {
-        const spend = extractSpend(row);
-        const placement = { 
-          channel: channelData.displayName,
-          placementId: channelData.placementId,
-          spend, 
-          row,
-          category: classification.category,
-          keyword: classification.keyword
-        };
-        
-        if (classification.tier === 'tier1') {
-          tier1Placements.push(placement);
-          totalSpend.tier1 += spend;
-        } else {
-          tier2Placements.push(placement);
-          totalSpend.tier2 += spend;
-        }
-        
-        // Track category totals
-        const cat = classification.category;
-        if (!categoryTotals[cat]) {
-          categoryTotals[cat] = { count: 0, spend: 0, tier1: 0, tier2: 0 };
-        }
-        categoryTotals[cat].count++;
-        categoryTotals[cat].spend += spend;
-        if (classification.tier === 'tier1') {
-          categoryTotals[cat].tier1++;
-        } else {
-          categoryTotals[cat].tier2++;
-        }
-        
-        highlightRow(row, classification);
+      // Track category totals
+      const cat = classification.category;
+      if (!categoryTotals[cat]) {
+        categoryTotals[cat] = { count: 0, spend: 0, tier1: 0, tier2: 0 };
       }
+      categoryTotals[cat].count++;
+      categoryTotals[cat].spend += spend;
+      if (classification.tier === 'tier1') {
+        categoryTotals[cat].tier1++;
+      } else {
+        categoryTotals[cat].tier2++;
+      }
+      
+      highlightRow(row, classification);
     });
     
     console.log(`[PMax] Scan complete: ${tier1Placements.length} tier1, ${tier2Placements.length} tier2`);
-    console.log('[PMax] Category totals:', categoryTotals);
     
     return {
       success: true,
-      tier1: tier1Placements.map(p => ({ channel: p.channel, placementId: p.placementId, spend: p.spend, category: p.category })),
-      tier2: tier2Placements.map(p => ({ channel: p.channel, placementId: p.placementId, spend: p.spend, category: p.category, keyword: p.keyword })),
+      tier1: tier1Placements.map(p => ({ 
+        channel: p.channel, 
+        placementId: p.placementId, 
+        spend: p.spend, 
+        category: p.category 
+      })),
+      tier2: tier2Placements.map(p => ({ 
+        channel: p.channel, 
+        placementId: p.placementId, 
+        spend: p.spend, 
+        category: p.category, 
+        keyword: p.keyword 
+      })),
       totalSpend,
       categoryTotals,
-      counts: { tier1: tier1Placements.length, tier2: tier2Placements.length }
+      counts: { 
+        tier1: tier1Placements.length, 
+        tier2: tier2Placements.length 
+      }
     };
-  }
-  
-  // Exclude - DEPRECATED: Now managed through dashboard only
-  function performExclusion() {
-    console.log('[PMax] Exclusion now managed through PMax Sentry Dashboard');
-    return { success: true, message: 'Use PMax Sentry Dashboard to exclude channels' };
   }
   
   // Message handlers
@@ -367,44 +287,41 @@
     if (request.action === 'scanPlacements') {
       scanPlacements().then(result => {
         sendResponse(result);
+      }).catch(err => {
+        sendResponse({ error: err.message });
       });
       return true;
     }
     
     if (request.action === 'performExclusion') {
-      try {
-        const result = performExclusion();
-        sendResponse(result);
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-      return false; // Synchronous
+      sendResponse({ 
+        success: true, 
+        message: 'Use PMax Sentry Dashboard to exclude channels' 
+      });
+      return false;
     }
     
     if (request.action === 'toggleSuspected') {
       highlightSuspected = request.enabled;
       sendResponse({ success: true });
-      return false; // Synchronous
+      return false;
     }
     
     if (request.action === 'toggleHighlight') {
-      // Toggle highlight for a specific channel
       const channel = request.channel;
       const show = request.show;
       
-      // Find the row with this channel
       const rows = document.querySelectorAll('table tbody tr');
       rows.forEach(row => {
-        const name = extractChannelName(row);
-        if (name === channel) {
+        const data = extractChannelData(row);
+        if (data.displayName === channel) {
           if (show) {
-            // Restore highlight based on classification
-            const classification = classifyChannel(name);
-            if (classification.tier === 'tier1' || classification.tier === 'tier2') {
+            const normalized = channel.toLowerCase();
+            const classification = cachedClassifications[normalized];
+            if (classification && (classification.tier === 'tier1' || classification.tier === 'tier2')) {
               highlightRow(row, classification);
             }
           } else {
-            // Remove highlight
             row.style.backgroundColor = '';
             row.style.borderLeft = '';
             row.style.opacity = '0.5';
@@ -413,30 +330,24 @@
       });
       
       sendResponse({ success: true });
-      return false; // Synchronous
+      return false;
     }
     
     if (request.action === 'reloadData') {
-      // Force reload data from storage
       initialize().then(() => {
-        sendResponse({ 
-          success: true, 
-          dataLoaded, 
-          channelCount: channelSet.size 
-        });
+        sendResponse({ success: true, licensed: isLicensed });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
       });
-      return true; // Asynchronous
+      return true;
     }
     
     if (request.action === 'markBlocked') {
-      // Mark a channel as blocked (grey overlay)
       const channel = request.channel;
       const rows = document.querySelectorAll('table tbody tr');
       rows.forEach(row => {
-        const name = extractChannelName(row);
-        if (name === channel) {
+        const data = extractChannelData(row);
+        if (data.displayName === channel) {
           row.style.backgroundColor = '#e5e7eb';
           row.style.borderLeft = '4px solid #9ca3af';
           row.style.opacity = '0.6';
@@ -451,14 +362,11 @@
       sendResponse({ 
         pong: true, 
         licensed: isLicensed, 
-        dataLoaded,
-        channelCount: channelSet.size,
-        keywordCount: suspectedKeywords.length
+        version: '3.0'
       });
-      return false; // Synchronous
+      return false;
     }
     
-    // Unknown action
     sendResponse({ error: 'Unknown action' });
     return false;
   });

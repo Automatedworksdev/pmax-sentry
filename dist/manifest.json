@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PMax Sentry",
-  "version": "2.2.0",
-  "description": "Automatically identify and exclude low-quality YouTube placements in Performance Max campaigns",
+  "version": "3.0.0",
+  "description": "Automatically identify and exclude low-quality YouTube placements in Performance Max campaigns - Now with secure proxy architecture",
   "permissions": [
     "sidePanel",
     "storage",
@@ -11,7 +11,6 @@
   ],
   "host_permissions": [
     "https://ads.google.com/*",
-    "https://*.supabase.co/*",
     "file:///*"
   ],
   "action": {
