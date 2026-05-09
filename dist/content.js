@@ -131,9 +131,12 @@
     if (ytMatch) channelId = ytMatch[1];
     else if (appMatch) channelId = appMatch[1];
     
+    console.log('[PMax] classifyChannel:', { normalized, channelId, channelSetSize: channelSet.size });
+    
     // Tier 1: Exact match (check both full name and extracted ID)
     if (channelSet.has(normalized) || channelSet.has(channelId)) {
       const category = categoryMap[normalized] || categoryMap[channelId] || 'General';
+      console.log('[PMax] Tier 1 match:', channelId);
       return { tier: 'tier1', category };
     }
     
@@ -143,11 +146,13 @@
         if (normalized.includes(keyword)) {
           // Infer category from keyword
           const category = inferCategory(keyword);
+          console.log('[PMax] Tier 2 match:', keyword);
           return { tier: 'tier2', keyword, category };
         }
       }
     }
     
+    console.log('[PMax] No match for:', channelId);
     return { tier: 'none' };
   }
   
