@@ -1,151 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMax Sentry v2.2</title>
+  <title>PMax Sentry</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: white; min-height: 100vh; }
+    .container { padding: 16px; }
+    .header { text-align: center; padding: 12px 0; border-bottom: 1px solid #1e293b; }
+    .logo { width: 48px; height: 48px; margin-bottom: 8px; }
+    .title { font-size: 18px; font-weight: 700; margin: 0; }
+    .subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
+    
+    .hero-stat { 
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); 
+      border: 1px solid #334155; 
+      border-radius: 8px; 
+      padding: 20px; 
+      text-align: center; 
+      margin: 16px 0;
+    }
+    .hero-number { 
+      font-size: 42px; 
+      font-weight: 800; 
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+    .hero-sub { font-size: 11px; color: #64748b; margin-top: 6px; }
+    
+    .status { text-align: center; font-size: 12px; color: #64748b; margin: 12px 0; }
+    
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-secondary { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    
+    .sections { margin-top: 16px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e293b; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-tier1 { background: #dc2626; color: white; }
+    .badge-tier2 { background: #f59e0b; color: black; }
+    
+    #license-view { padding: 40px 16px; text-align: center; }
+    .input { width: 100%; padding: 12px; margin: 16px 0; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: white; font-size: 14px; box-sizing: border-box; }
+    .input::placeholder { color: #64748b; }
+    
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
-
-  <!-- LICENSE VIEW -->
-  <div id="license-view" class="license-view">
-    <img src="images/icon128.png" alt="PMax Sentry" class="logo">
-    <h1>PMax Sentry</h1>
-    <p class="subtitle">Intelligence Engine v2.2</p>
-    
-    <div class="card">
-      <h3>Activate License</h3>
-      <p class="description">Enter your license key to activate</p>
-      <input type="text" id="license-key" class="input" placeholder="PMX-XXXX-XXXX-XXXX">
-      <button id="validate-license-btn" class="btn">Activate</button>
-      <div id="license-status" class="status-text"></div>
-    </div>
-    
-    <div class="help-text"><p>Need help? Contact support</p></div>
+  <div id="license-view">
+    <img src="images/icon128.png" class="logo" alt="Logo">
+    <div class="title">PMax Sentry</div>
+    <div class="subtitle">Intelligence Engine v3.0</div>
+    <input type="text" id="license-key" class="input" placeholder="Enter license key">
+    <button id="activate-btn" class="btn btn-primary">Activate</button>
+    <div id="license-error" style="color: #ef4444; margin-top: 12px; font-size: 12px;"></div>
   </div>
 
-  <!-- DASHBOARD VIEW -->
-  <div id="dashboard-view" class="dashboard-view hidden">
-    
-    <!-- Premium Header -->
-    <div class="premium-header">
-      <div class="header-wrapper">
-        <img src="images/icon128.png" alt="PMax Sentry" class="header-logo">
-        <h1 class="header-title">PMax Sentry</h1>
-        <p class="header-version">Intelligence Engine</p>
-        <p class="header-tagline" id="header-tagline"><span class="count">0</span> junk channels blocked</p>
+  <div id="dashboard-view" class="hidden">
+    <div class="container">
+      <div class="header">
+        <img src="images/icon128.png" class="logo" alt="Logo">
+        <div class="title">PMax Sentry</div>
+        <div class="subtitle">Intelligence Engine</div>
       </div>
-      <div class="header-actions">
-        <button id="sync-btn" class="header-refresh-btn" title="Sync Database">
-          <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-          </svg>
-        </button>
-        <span class="header-status">✓ Active</span>
+      
+      <div class="hero-stat">
+        <div class="hero-number" id="channel-count">51,448</div>
+        <div class="hero-label">Intelligence Records Active</div>
+        <div class="hero-sub">Vetting against verified waste sources</div>
       </div>
-    </div>
-    
-    <div class="header-divider"></div>
-    
-    <!-- Stats with Icons -->
-    <div class="dash-stats">
-      <div class="stat-box stat-box-channels">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-          </svg>
-        </div>
-        <span class="stat-num" id="channel-count">0</span>
-        <span class="stat-label">Channels</span>
-        <div id="sync-progress" class="sync-progress hidden">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <span class="progress-text" id="progress-text">Downloading Database...</span>
-        </div>
+      
+      <div class="status" id="status-text">Ready to scan</div>
+      
+      <div class="actions">
+        <button id="scan-btn" class="btn btn-primary">Scan</button>
+        <button id="save-btn" class="btn btn-secondary">Export</button>
       </div>
-      <div class="stat-box">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"></path>
-            <line x1="7" y1="7" x2="7.01" y2="7"></line>
-          </svg>
-        </div>
-        <span class="stat-num" id="data-version">2.2</span>
-        <span class="stat-label">Version</span>
-      </div>
-      <div class="stat-box stat-box-synced">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-          </svg>
-        </div>
-        <span class="stat-num" id="last-sync">--</span>
-        <span class="stat-label">Synced</span>
+      
+      <div class="sections">
+        <div id="results-container"></div>
       </div>
     </div>
-    
-    <!-- Status Bar -->
-    <div id="status" class="dash-status">Ready to scan</div>
-    
-    <!-- Actions - Clean scan flow -->
-    <div class="dash-actions">
-      <button id="scan-btn" class="dash-btn dash-btn-primary">Scan Placements</button>
-      <button id="save-btn" class="dash-btn dash-btn-secondary">Save Report</button>
-    </div>
-    
-    <!-- Tier 1 Results -->
-    <div class="result-card">
-      <div class="result-header">
-        <div class="result-header-left">
-          <input type="checkbox" id="select-all-tier1" class="select-all-checkbox" title="Select All">
-          <h3>🔴 Confirmed Waste</h3>
-        </div>
-        <div class="result-stats">
-          <span id="tier1-count">0</span>
-          <span id="tier1-spend">£0.00</span>
-        </div>
-      </div>
-      <ul id="tier1-list" class="placement-list"></ul>
-    </div>
-    
-    <!-- Tier 2 Results -->
-    <div class="result-card">
-      <div class="result-header">
-        <div class="result-header-left">
-          <input type="checkbox" id="select-all-tier2" class="select-all-checkbox" title="Select All">
-          <h3>🟡 Suspected Waste</h3>
-        </div>
-        <div class="result-stats">
-          <span id="tier2-count">0</span>
-          <span id="tier2-spend">£0.00</span>
-        </div>
-      </div>
-      <ul id="tier2-list" class="placement-list"></ul>
-    </div>
-    
-    <!-- Category Breakdown -->
-    <div class="result-card">
-      <div class="result-header">
-        <h3>📊 Category Breakdown</h3>
-      </div>
-      <div id="category-breakdown"></div>
-    </div>
-    
-    <!-- Footer Actions -->
-    <div class="footer-actions">
-      <button id="block-waste-btn" class="footer-btn footer-btn-primary" title="Click to instantly add selected junk placements to your Google Ads Exclusion List.">Block Waste</button>
-      <button id="feed-sentry-btn" class="footer-btn footer-btn-outline" title="Anonymously share these junk IDs to our global database to help protect other users.">Feed the Sentry</button>
-    </div>
-    
   </div>
 
-  <script src="xlsx.full.min.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>
