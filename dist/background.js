@@ -9,7 +9,7 @@
  * - No local channel database (removed chrome.storage.local for channel data)
  */
 
-const PROXY_URL = 'https://pmax-sentry-proxy-wine.vercel.app';
+const PROXY_URL = 'https://pmax-sentry-proxy-jrgltqyn8-automatedworksdevs-projects.vercel.app';
 const DATA_VERSION = '3.0';
 
 // Junk keywords for Tier 2 classification (fallback only)
