@@ -1305,3 +1305,22 @@ body {
   cursor: pointer;
   accent-color: var(--primary);
 }
+
+/* Power Statement - Database Status */
+.power-statement {
+  font-size: 10px;
+  color: var(--success);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.stat-box-database {
+  background: linear-gradient(135deg, var(--success-bg) 0%, #ffffff 100%);
+  border: 1px solid var(--success);
+}
+
+.stat-box-database .stat-num {
+  color: var(--success);
+  font-weight: 700;
+}
+
