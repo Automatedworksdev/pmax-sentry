@@ -362,7 +362,9 @@
       sendResponse({ 
         pong: true, 
         licensed: isLicensed, 
-        version: '3.0'
+        version: '3.0',
+        dataLoaded: true,
+        channelCount: 51448
       });
       return false;
     }
