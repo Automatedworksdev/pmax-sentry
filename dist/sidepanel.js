@@ -966,13 +966,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Buttons are always enabled (global actions)
-    if (blockWasteBtn) blockWasteBtn.disabled = false;
+    if (blockWasteBtn) {
+      // Initial state - will be updated by updateBlockWasteButton()
+      updateBlockWasteButton();
+    }
     if (feedSentryBtn) feedSentryBtn.disabled = false;
     if (saveBtn) saveBtn.disabled = !((scanResults.tier1 && scanResults.tier1.length) || (scanResults.tier2 && scanResults.tier2.length));
     
     // Initial sync of header checkboxes
     syncHeaderCheckbox('tier1-list', 'select-all-tier1');
     syncHeaderCheckbox('tier2-list', 'select-all-tier2');
+    
+    // Ensure Block Waste button state is correct after initial render
+    updateBlockWasteButton();
   }
 
   // Listen for sync completion messages from background
@@ -1022,10 +1028,10 @@ document.addEventListener('DOMContentLoaded', function() {
         checkboxes.forEach(function(cb) {
           if (!cb.disabled) {
             cb.checked = selectAllTier1.checked;
-            // Trigger visual sync
-            cb.dispatchEvent(new Event('change'));
           }
         });
+        // Update Block Waste button after mass toggle
+        updateBlockWasteButton();
       });
     }
     
@@ -1035,10 +1041,10 @@ document.addEventListener('DOMContentLoaded', function() {
         checkboxes.forEach(function(cb) {
           if (!cb.disabled) {
             cb.checked = selectAllTier2.checked;
-            // Trigger visual sync
-            cb.dispatchEvent(new Event('change'));
           }
         });
+        // Update Block Waste button after mass toggle
+        updateBlockWasteButton();
       });
     }
   }
@@ -1079,6 +1085,30 @@ document.addEventListener('DOMContentLoaded', function() {
     else {
       headerCheckbox.checked = false;
       headerCheckbox.indeterminate = true;
+    }
+    
+    // Update Block Waste button state
+    updateBlockWasteButton();
+  }
+  
+  // Update Block Waste button based on selection state
+  function updateBlockWasteButton() {
+    if (!blockWasteBtn) return;
+    
+    var tier1Checked = document.querySelectorAll('#tier1-list .placement-checkbox:checked:not(:disabled)');
+    var tier2Checked = document.querySelectorAll('#tier2-list .placement-checkbox:checked:not(:disabled)');
+    var totalChecked = tier1Checked.length + tier2Checked.length;
+    
+    if (totalChecked > 0) {
+      blockWasteBtn.disabled = false;
+      blockWasteBtn.textContent = 'Block Waste (' + totalChecked + ')';
+      blockWasteBtn.style.opacity = '1';
+      blockWasteBtn.style.cursor = 'pointer';
+    } else {
+      blockWasteBtn.disabled = true;
+      blockWasteBtn.textContent = 'Block Waste';
+      blockWasteBtn.style.opacity = '0.5';
+      blockWasteBtn.style.cursor = 'not-allowed';
     }
   }
   
