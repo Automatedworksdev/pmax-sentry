@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMax Sentry v2.2</title>
+  <title>PMax Sentry v3.0</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="hero-stats.css">
 </head>
 <body>
 
@@ -34,7 +35,7 @@
         <img src="images/icon128.png" alt="PMax Sentry" class="header-logo">
         <h1 class="header-title">PMax Sentry</h1>
         <p class="header-version">Intelligence Engine</p>
-        <p class="header-tagline" id="header-tagline"><span class="count">51,448</span> junk channels blocked</p>
+        <p class="header-tagline" id="header-tagline">Intelligence Engine Active: Vetting against 51,448 sources</p>
       </div>
       <div class="header-actions">
         <button id="sync-btn" class="header-refresh-btn" title="Sync Database">
@@ -48,46 +49,12 @@
     
     <div class="header-divider"></div>
     
-    <!-- Stats with Icons -->
-    <div class="dash-stats">
-      <div class="stat-box stat-box-channels">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-          </svg>
-        </div>
-        <span class="stat-num" id="channel-count">51,448</span>
-        <span class="stat-label">Waste Sources</span>
-        <div class="power-statement">Vetting placements against verified waste sources...</div>
-        <div id="sync-progress" class="sync-progress hidden">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <span class="progress-text" id="progress-text">Downloading Database...</span>
-        </div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"></path>
-            <line x1="7" y1="7" x2="7.01" y2="7"></line>
-          </svg>
-        </div>
-        <span class="stat-num" id="data-version">3.0</span>
-        <span class="stat-label">Version</span>
-      </div>
-      <div class="stat-box stat-box-synced">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-          </svg>
-        </div>
-        <span class="stat-num" id="last-sync">--</span>
-        <span class="stat-label">Synced</span>
+    <!-- Stats - Hero Number -->
+    <div class="dash-stats hero-stats">
+      <div class="stat-box stat-hero">
+        <div class="stat-hero-number" id="channel-count">51,448</div>
+        <div class="stat-hero-label">Verified Waste Sources</div>
+        <div class="stat-hero-sublabel">Intelligence Engine Active</div>
       </div>
     </div>
     
