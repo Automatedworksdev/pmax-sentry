@@ -442,13 +442,21 @@ document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
         if (item && !item.classList.contains('sentry-captured')) {
-          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
+          checkedChannels.push({ 
+            channel: item.dataset.channel, 
+            placementId: item.dataset.placementId || item.dataset.channel,
+            tier: 'tier1' 
+          });
         }
       });
       document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
         if (item && !item.classList.contains('sentry-captured')) {
-          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
+          checkedChannels.push({ 
+            channel: item.dataset.channel, 
+            placementId: item.dataset.placementId || item.dataset.channel,
+            tier: 'tier2' 
+          });
         }
       });
 
@@ -461,9 +469,12 @@ document.addEventListener('DOMContentLoaded', function() {
       var proceed = confirm('You are about to block ' + checkedChannels.length + ' placements. This will stop your ads from showing on these channels. Proceed?');
       if (!proceed) return;
 
-      // Block checked channels
+      // Block checked channels - NOW INCLUDES URL
       checkedChannels.forEach(function(item) {
-        reportChannel(item.channel, item.channel, { tier: item.tier });
+        reportChannel(item.channel, item.channel, { 
+          tier: item.tier,
+          placementId: item.placementId 
+        });
         
         // Send message to grey out the row on Google Ads page
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -506,13 +517,21 @@ document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('#tier1-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
         if (item && !item.classList.contains('sentry-captured')) {
-          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier1' });
+          checkedChannels.push({ 
+            channel: item.dataset.channel, 
+            placementId: item.dataset.placementId || item.dataset.channel,
+            tier: 'tier1' 
+          });
         }
       });
       document.querySelectorAll('#tier2-list .placement-checkbox:checked').forEach(function(cb) {
         var item = cb.closest('.placement-item');
         if (item && !item.classList.contains('sentry-captured')) {
-          checkedChannels.push({ channel: item.dataset.channel, tier: 'tier2' });
+          checkedChannels.push({ 
+            channel: item.dataset.channel, 
+            placementId: item.dataset.placementId || item.dataset.channel,
+            tier: 'tier2' 
+          });
         }
       });
 
@@ -521,9 +540,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      // Report checked channels
+      // Report checked channels - NOW INCLUDES URL
       checkedChannels.forEach(function(item) {
-        reportChannel(item.channel, item.channel, { tier: item.tier });
+        reportChannel(item.channel, item.channel, { 
+          tier: item.tier, 
+          placementId: item.placementId 
+        });
       });
 
       // Success animation
@@ -789,6 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
+          li.dataset.placementId = p.placementId || '';
 
           // Check if already blocked
           var isBlocked = isChannelBlocked(p.channel);
@@ -813,6 +836,7 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.className = 'placement-checkbox';
             checkbox.checked = true;
             checkbox.dataset.channel = p.channel;
+            checkbox.dataset.placementId = p.placementId || '';
             checkbox.dataset.tier = 'tier1';
             
             // Add change listener to sync with Google Ads page highlighting AND header checkbox
@@ -859,6 +883,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var li = document.createElement('li');
           li.className = 'placement-item';
           li.dataset.channel = p.channel;
+          li.dataset.placementId = p.placementId || '';
 
           // Check if already blocked
           var isBlocked = isChannelBlocked(p.channel);
@@ -883,6 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.className = 'placement-checkbox';
             checkbox.checked = true;
             checkbox.dataset.channel = p.channel;
+            checkbox.dataset.placementId = p.placementId || '';
             checkbox.dataset.tier = 'tier2';
             
             // Add change listener to sync with Google Ads page highlighting AND header checkbox
