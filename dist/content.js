@@ -124,9 +124,16 @@
     
     const normalized = channelName.toLowerCase().trim();
     
-    // Tier 1: Exact match
-    if (channelSet.has(normalized)) {
-      const category = categoryMap[normalized] || 'General';
+    // Extract ID from URL if it's a YouTube/Play Store URL
+    let channelId = normalized;
+    const ytMatch = normalized.match(/\/channel\/(uc[\w-]+)/);
+    const appMatch = normalized.match(/\?id=([\w.]+)/);
+    if (ytMatch) channelId = ytMatch[1];
+    else if (appMatch) channelId = appMatch[1];
+    
+    // Tier 1: Exact match (check both full name and extracted ID)
+    if (channelSet.has(normalized) || channelSet.has(channelId)) {
+      const category = categoryMap[normalized] || categoryMap[channelId] || 'General';
       return { tier: 'tier1', category };
     }
     
