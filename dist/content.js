@@ -11,6 +11,9 @@
 (function() {
   'use strict';
   
+  // Proxy URL
+  const PROXY_URL = 'https://pmax-sentry-proxy-git-master-automatedworksdevs-projects.vercel.app';
+  
   console.log('[PMax Sentry] Content script v3.0 loaded (Proxy Architecture)');
   
   // Safe mode detection - include mock test file
