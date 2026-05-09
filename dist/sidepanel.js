@@ -684,7 +684,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add data rows
       if (scanResults.tier1) {
         scanResults.tier1.forEach(function(p) {
-          console.log('[XLSX] Tier1 item:', p);
           var placementIdValue = p.placementId && p.placementId.startsWith('http') ? p.placementId : p.channel;
           data.push({
             'Tier': 'Confirmed',
@@ -697,7 +696,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       if (scanResults.tier2) {
         scanResults.tier2.forEach(function(p) {
-          console.log('[XLSX] Tier2 item:', p);
           var placementIdValue = p.placementId && p.placementId.startsWith('http') ? p.placementId : p.channel;
           data.push({
             'Tier': 'Suspected',
