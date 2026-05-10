@@ -11,7 +11,8 @@
   ],
   "host_permissions": [
     "https://ads.google.com/*",
-    "file:///*"
+    "file:///*",
+    "https://pmax-sentry-proxy-git-master-automatedworksdevs-projects.vercel.app/*"
   ],
   "action": {
     "default_title": "Click to open PMax Sentry"
