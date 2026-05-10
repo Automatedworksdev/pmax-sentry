@@ -59,35 +59,48 @@
           </svg>
         </div>
         <span class="stat-num" id="channel-count">0</span>
-        <span class="stat-label">Channels</span>
-        <div id="sync-progress" class="sync-progress hidden">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <span class="progress-text" id="progress-text">Downloading Database...</span>
-        </div>
+        <span class="stat-label">Total Sources</span>
       </div>
-      <div class="stat-box">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"></path>
-            <line x1="7" y1="7" x2="7.01" y2="7"></line>
-          </svg>
-        </div>
-        <span class="stat-num" id="data-version">2.2</span>
-        <span class="stat-label">Version</span>
+    </div>
+    
+    <!-- Category Breakdown -->
+    <div class="category-grid" id="category-grid">
+      <div class="category-card category-kids">
+        <div class="category-icon">🎮</div>
+        <div class="category-name">Kids Content</div>
+        <div class="category-count" id="kids-count">--</div>
       </div>
-      <div class="stat-box stat-box-synced">
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-          </svg>
-        </div>
-        <span class="stat-num" id="last-sync">--</span>
-        <span class="stat-label">Synced</span>
+      <div class="category-card category-gaming">
+        <div class="category-icon">🎯</div>
+        <div class="category-name">Gaming</div>
+        <div class="category-count" id="gaming-count">--</div>
       </div>
+      <div class="category-card category-asmr">
+        <div class="category-icon">🎧</div>
+        <div class="category-name">ASMR</div>
+        <div class="category-count" id="asmr-count">--</div>
+      </div>
+      <div class="category-card category-mfa">
+        <div class="category-icon">📱</div>
+        <div class="category-name">Mobile Apps</div>
+        <div class="category-count" id="mfa-count">--</div>
+      </div>
+      <div class="category-card category-news">
+        <div class="category-icon">📰</div>
+        <div class="category-name">News</div>
+        <div class="category-count" id="news-count">--</div>
+      </div>
+      <div class="category-card category-music">
+        <div class="category-icon">🎵</div>
+        <div class="category-name">Music</div>
+        <div class="category-count" id="music-count">--</div>
+      </div>
+    </div>
+    
+    <!-- Footer Info -->
+    <div class="dash-footer">
+      <span class="footer-version">v3.0</span>
+      <span class="footer-sync" id="footer-sync">Synced: --</span>
     </div>
     
     <!-- Status Bar -->
