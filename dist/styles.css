@@ -1390,3 +1390,17 @@ body {
 #channel-count {
   margin-top: 8px;
 }
+
+/* Category tags in scan results */
+.placement-category {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #e5e7eb;
+  color: #374151;
+  margin-left: 8px;
+}
