@@ -695,6 +695,9 @@ body {
   line-height: 1.2;
   margin-top: 8px;
   padding-top: 4px;
+  text-align: center;
+  width: 100%;
+  display: block;
 }
 
 /* Channels box with progress - content stays centered */
