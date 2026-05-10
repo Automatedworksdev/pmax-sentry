@@ -125,7 +125,8 @@ async function classifyChannels(channels, licenseKey) {
     if (result.results) {
       result.results = result.results.map(r => {
         // Database match: has a placementId or is explicitly flagged as in database
-        const isDatabaseMatch = r.placementId || r.inDatabase || r.isMatch || r.tier === 'tier1';
+        // STRICT: Only Tier 1 if explicitly from database
+        const isDatabaseMatch = r.inDatabase === true || r.isMatch === true || r.fromDatabase === true;
         
         if (isDatabaseMatch) {
           // Force Tier 1 for database matches
