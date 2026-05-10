@@ -196,34 +196,12 @@ function checkSuspectedKeywords(channelName) {
  */
 async function syncChannelData(force = false) {
   try {
-    const { licenseKey, licenseInfo } = await chrome.storage.local.get(['licenseKey', 'licenseInfo']);
-    
-    if (!licenseKey) {
-      return { error: 'No license key' };
-    }
-    
-    const response = await fetch(`${PROXY_URL}/api/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ licenseKey })
-    });
-    
-    if (!response.ok) {
-      return { error: 'Sync failed' };
-    }
-    
-    const result = await response.json();
-    
-    // Store only metadata, not full channel list
-    await chrome.storage.local.set({
-      syncStatus: 'completed',
-      lastSyncAt: Date.now(),
-      channelCount: result.channels?.length || 0,
-      dataVersion: result.version,
-      isTrial: result.limited || false
-    });
-    
-    return result;
+    await fetchStatsFromProxy();
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
     
   } catch (error) {
     console.error('[PMax] Sync error:', error);
