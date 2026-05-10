@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Sync button
   var refreshBtn = document.getElementById('sync-btn');
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', function() {
+    refreshBtn.addEventListener('click', function() { console.log('[SYNC BUTTON CLICKED]');
       var refreshIcon = refreshBtn.querySelector('.refresh-icon');
       refreshBtn.disabled = true;
       if (refreshIcon) refreshIcon.classList.add('spinning');
