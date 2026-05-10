@@ -202,12 +202,6 @@ async function syncChannelData(force = false) {
     return { error: err.message };
   }
 }
-    
-  } catch (error) {
-    console.error('[PMax] Sync error:', error);
-    return { error: error.message };
-  }
-}
 
 /**
  * Report channel via proxy
