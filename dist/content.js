@@ -125,20 +125,22 @@
   // Highlight row
   function highlightRow(row, classification) {
     const colors = classification.tier === 'tier1' ? COLORS.tier1 : COLORS.tier2;
-    const catColor = CATEGORY_COLORS[classification.category] || CATEGORY_COLORS['General'];
+    // Tag color matches Tier: Red for Tier 1 (Confirmed), Orange for Tier 2 (Suspected)
+    const tagColor = classification.tier === 'tier1' ? '#dc2626' : '#d97706';
+    const tagBg = classification.tier === 'tier1' ? '#fee2e2' : '#fef3c7';
     
     row.style.backgroundColor = colors.bg;
     row.style.borderLeft = `4px solid ${colors.border}`;
     row.dataset.sentryTier = classification.tier;
     row.dataset.sentryCategory = classification.category;
     
-    // Add category badge to first cell
+    // Add category badge to first cell - color matches tier
     const cells = row.querySelectorAll('td');
     const nameCell = cells[0];
     if (nameCell && !nameCell.querySelector('.sentry-cat-badge')) {
       const badge = document.createElement('span');
       badge.className = 'sentry-cat-badge';
-      badge.style.cssText = `display:inline-block;margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;background:${catColor};color:white;font-weight:500;`;
+      badge.style.cssText = `display:inline-block;margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;background:${tagBg};color:${tagColor};font-weight:600;`;
       badge.textContent = classification.category;
       nameCell.appendChild(badge);
     }

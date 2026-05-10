@@ -121,15 +121,24 @@ async function classifyChannels(channels, licenseKey) {
     
     const result = await response.json();
     
-    // Post-process: fix any GENERAL or missing categories using local keywords
+    // FINAL LOGIC: Database = Tier 1 (Confirmed), Keywords = Tier 2 (Suspected)
     if (result.results) {
       result.results = result.results.map(r => {
-        if (!r.category || r.category === 'General' || r.category === 'UNKNOWN') {
+        // If proxy returned a real match (not GENERAL/UNKNOWN), it's Tier 1
+        if (r.tier === 'tier1' || (r.category && r.category !== 'General' && r.category !== 'UNKNOWN')) {
+          r.tier = 'tier1'; // Force Tier 1 for database matches
+          r.source = 'database'; // Track source
+        } 
+        // Otherwise check keywords for Tier 2
+        else {
           const normalized = r.name?.toLowerCase() || '';
           const match = checkSuspectedKeywords(normalized);
           if (match) {
             r.category = match.category;
-            if (r.tier === 'none') r.tier = 'tier2';
+            r.tier = 'tier2'; // Keywords = Tier 2
+            r.source = 'keyword';
+          } else {
+            r.tier = 'none';
           }
         }
         return r;
