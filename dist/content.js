@@ -59,7 +59,7 @@
     'Music': '#ec4899',
     'Utility Apps': '#f97316',
     'Foreign Language': '#06b6d4',
-    'General': '#6b7280'
+    'Low Quality': '#6b7280'
   };
   
   // Initialize
@@ -125,7 +125,7 @@
   // Highlight row
   function highlightRow(row, classification) {
     const colors = classification.tier === 'tier1' ? COLORS.tier1 : COLORS.tier2;
-    const catColor = CATEGORY_COLORS[classification.category] || CATEGORY_COLORS['General'];
+    const catColor = CATEGORY_COLORS[classification.category] || CATEGORY_COLORS['Low Quality'];
     
     row.style.backgroundColor = colors.bg;
     row.style.borderLeft = `4px solid ${colors.border}`;

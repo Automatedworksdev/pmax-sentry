@@ -131,14 +131,14 @@ async function classifyChannels(channels, licenseKey) {
           // Force Tier 1 for database matches
           r.tier = 'tier1';
           r.source = 'database';
-          if (!r.category || r.category === 'General' || r.category === 'UNKNOWN') {
+          if (!r.category || r.category === 'Low Quality' || r.category === 'UNKNOWN') {
             // Assign category based on name if missing
             const normalized = r.name?.toLowerCase() || '';
             const match = checkSuspectedKeywords(normalized);
             if (match) r.category = match.category;
-            else r.category = 'General';
+            else r.category = 'Low Quality';
           }
-        } else if (r.category && r.category !== 'General' && r.category !== 'UNKNOWN') {
+        } else if (r.category && r.category !== 'Low Quality' && r.category !== 'UNKNOWN') {
           // Has a category but not from database = Tier 2
           r.tier = 'tier2';
           r.source = 'keyword';
