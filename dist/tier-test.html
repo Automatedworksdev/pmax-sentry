@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Google Ads - PMax Sentry Tier Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .header {
+            background: #fff;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #1f2937;
+        }
+        .header p {
+            margin: 8px 0 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .test-section {
+            background: #fff;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .tier1-header {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .tier2-header {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 12px 20px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+        }
+        tr:hover {
+            background: #f9fafb;
+        }
+        .channel-name {
+            color: #1d4ed8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .channel-name:hover {
+            text-decoration: underline;
+        }
+        .spend {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-eligible {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+        .info-box h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #1e40af;
+        }
+        .info-box p {
+            margin: 0;
+            font-size: 13px;
+            color: #3b82f6;
+        }
+        .legend {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #374151;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot-tier1 { background: #dc2626; }
+        .dot-tier2 { background: #d97706; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 PMax Sentry Tier Test Page</h1>
+        <p>Test channels for Tier 1 (Database/Confirmed) vs Tier 2 (Keyword/Suspected) classification</p>
+    </div>
+
+    <div class="info-box">
+        <h3>Expected Results</h3>
+        <p><strong>Tier 1 (Red):</strong> Channels in 51k database → Cocomelon, Baby Shark, Kids TV</p>
+        <p><strong>Tier 2 (Orange):</strong> Keyword matches → Mobile Gaming, ASMR Relaxation</p>
+    </div>
+
+    <!-- TIER 1 TEST SECTION - These should be in database -->
+    <div class="test-section">
+        <div class="section-header tier1-header">
+            🔴 TIER 1 TEST - Should be CONFIRMED (Database Matches)
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Channel</th>
+                    <th>URL</th>
+                    <th>Spend</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-channel="cocomelon">
+                    <td><a href="#" class="channel-name">Cocomelon Nursery Rhymes</a></td>
+                    <td>youtube.com/cocomelon</td>
+                    <td class="spend">£1,245.00</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="babyshark">
+                    <td><a href="#" class="channel-name">Baby Shark Official</a></td>
+                    <td>youtube.com/babyshark</td>
+                    <td class="spend">£892.50</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="kidstv">
+                    <td><a href="#" class="channel-name">Kids TV Channel</a></td>
+                    <td>youtube.com/kidstv</td>
+                    <td class="spend">£634.20</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="peppapig">
+                    <td><a href="#" class="channel-name">Peppa Pig World</a></td>
+                    <td>youtube.com/peppapig</td>
+                    <td class="spend">£456.80</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TIER 2 TEST SECTION - These should match keywords -->
+    <div class="test-section">
+        <div class="section-header tier2-header">
+            🟡 TIER 2 TEST - Should be SUSPECTED (Keyword Matches)
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Channel</th>
+                    <th>URL</th>
+                    <th>Spend</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-channel="mobilegaming">
+                    <td><a href="#" class="channel-name">Mobile Gaming Pro</a></td>
+                    <td>youtube.com/mobilegaming</td>
+                    <td class="spend">£328.40</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="asmr">
+                    <td><a href="#" class="channel-name">ASMR Relaxation Sounds</a></td>
+                    <td>youtube.com/asmrrelax</td>
+                    <td class="spend">£215.60</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="gamer">
+                    <td><a href="#" class="channel-name">Gamer Central Live</a></td>
+                    <td>youtube.com/gamercentral</td>
+                    <td class="spend">£189.30</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+                <tr data-channel="sleep">
+                    <td><a href="#" class="channel-name">Sleep Sounds 24/7</a></td>
+                    <td>youtube.com/sleepsounds</td>
+                    <td class="spend">£156.70</td>
+                    <td><span class="status status-eligible">Eligible</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-dot dot-tier1"></div>
+            <span>Tier 1: Database Confirmed (Red Badge)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot dot-tier2"></div>
+            <span>Tier 2: Keyword Suspected (Orange Badge)</span>
+        </div>
+    </div>
+</body>
+</html>
