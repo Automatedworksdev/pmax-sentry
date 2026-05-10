@@ -1385,3 +1385,8 @@ body {
   background: #fef3c7;
   color: #d97706;
 }
+
+/* Fix vertical alignment for channel count */
+#channel-count {
+  margin-top: 8px;
+}
