@@ -297,8 +297,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 channelCount.textContent = stats.channelCount.toLocaleString();
                 channelCount.classList.remove('pulsing');
               }
-              // Update synced time to "Just Now"
-              if (lastSync) lastSync.textContent = 'Just Now';
+              // Update synced time to actual time
+              var now = new Date();
+              var timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              if (lastSync) lastSync.textContent = timeStr;
             } else {
               if (statusEl) statusEl.textContent = 'Sync failed';
               if (channelCount) channelCount.classList.remove('pulsing');
