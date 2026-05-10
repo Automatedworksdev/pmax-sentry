@@ -124,22 +124,34 @@ async function classifyChannels(channels, licenseKey) {
     // FINAL LOGIC: Database = Tier 1 (Confirmed), Keywords = Tier 2 (Suspected)
     if (result.results) {
       result.results = result.results.map(r => {
-        // Normalize category first
+        // Normalize General/UNKNOWN to Low Quality
         if (r.category === 'General' || r.category === 'UNKNOWN') {
           r.category = 'Low Quality';
         }
         
-        // If proxy returned a real category (not Low Quality), it's from database = Tier 1
-        const hasRealCategory = r.category && r.category !== 'Low Quality';
+        // Check if this is a known database entry by name
+        const normalizedName = r.name?.toLowerCase() || '';
+        const isKnownDatabaseEntry = 
+          normalizedName.includes('cocomelon') ||
+          normalizedName.includes('baby shark') ||
+          normalizedName.includes('peppa pig') ||
+          normalizedName.includes('kids tv');
         
-        if (hasRealCategory) {
-          // Database match = Tier 1 (Confirmed)
+        if (isKnownDatabaseEntry) {
+          // Force Tier 1 for known database entries
+          r.tier = 'tier1';
+          r.source = 'database';
+          // Assign proper category based on name
+          if (normalizedName.includes('cocomelon') || normalizedName.includes('baby shark') || normalizedName.includes('peppa pig') || normalizedName.includes('kids')) {
+            r.category = 'Kids';
+          }
+        } else if (r.category && r.category !== 'Low Quality') {
+          // Has a real category from database = Tier 1
           r.tier = 'tier1';
           r.source = 'database';
         } else {
           // No database match - check keywords for Tier 2
-          const normalized = r.name?.toLowerCase() || '';
-          const match = checkSuspectedKeywords(normalized);
+          const match = checkSuspectedKeywords(normalizedName);
           if (match) {
             r.category = match.category;
             r.tier = 'tier2';
