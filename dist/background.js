@@ -121,6 +121,21 @@ async function classifyChannels(channels, licenseKey) {
     
     const result = await response.json();
     
+    // Post-process: fix any GENERAL or missing categories using local keywords
+    if (result.results) {
+      result.results = result.results.map(r => {
+        if (!r.category || r.category === 'General' || r.category === 'UNKNOWN') {
+          const normalized = r.name?.toLowerCase() || '';
+          const match = checkSuspectedKeywords(normalized);
+          if (match) {
+            r.category = match.category;
+            if (r.tier === 'none') r.tier = 'tier2';
+          }
+        }
+        return r;
+      });
+    }
+    
     // Cache the results temporarily for this session
     await chrome.storage.session.set({
       lastClassification: {
