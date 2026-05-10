@@ -124,8 +124,13 @@ async function classifyChannels(channels, licenseKey) {
     // FINAL LOGIC: Database = Tier 1 (Confirmed), Keywords = Tier 2 (Suspected)
     if (result.results) {
       result.results = result.results.map(r => {
-        // If proxy returned a real category (not Low Quality/UNKNOWN), it's from database = Tier 1
-        const hasRealCategory = r.category && r.category !== 'Low Quality' && r.category !== 'UNKNOWN' && r.category !== 'General';
+        // Normalize category first
+        if (r.category === 'General' || r.category === 'UNKNOWN') {
+          r.category = 'Low Quality';
+        }
+        
+        // If proxy returned a real category (not Low Quality), it's from database = Tier 1
+        const hasRealCategory = r.category && r.category !== 'Low Quality';
         
         if (hasRealCategory) {
           // Database match = Tier 1 (Confirmed)
@@ -140,15 +145,7 @@ async function classifyChannels(channels, licenseKey) {
             r.tier = 'tier2';
             r.source = 'keyword';
           } else {
-            r.tier = 'none';
-          }
-        }
-        return r;
-          if (match) {
-            r.category = match.category;
-            r.tier = 'tier2';
-            r.source = 'keyword';
-          } else {
+            r.category = 'Low Quality';
             r.tier = 'none';
           }
         }
