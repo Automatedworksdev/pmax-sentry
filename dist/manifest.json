@@ -12,7 +12,7 @@
   "host_permissions": [
     "https://ads.google.com/*",
     "file:///*",
-    "https://pmax-sentry-proxy-*.vercel.app/*"
+    "https://*.vercel.app/*"
   ],
   "action": {
     "default_title": "Click to open PMax Sentry"
