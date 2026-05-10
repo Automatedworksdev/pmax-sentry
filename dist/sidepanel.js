@@ -285,23 +285,28 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       if (progressEl) progressEl.classList.remove('hidden');
 
-      sendMessage({ action: 'forceRefresh' }, function() {
+      sendMessage({ action: 'forceRefresh' }, function(response) {
         setTimeout(function() {
-          sendMessage({ action: 'getSyncStatus' }, function(result) {
-            sendMessage({ action: 'getStats' }, function(stats) {
-              refreshBtn.disabled = false;
-              if (refreshIcon) refreshIcon.classList.remove('spinning');
-              if (result && result.syncStatus === 'completed' && stats && stats.channelCount > 0) {
-                if (statusEl) statusEl.textContent = 'Ready to scan';
-                if (progressEl) progressEl.classList.add('hidden');
-                if (channelCount) channelCount.classList.remove('pulsing');
-              } else {
-                if (statusEl) statusEl.textContent = 'Sync failed';
+          sendMessage({ action: 'getStats' }, function(stats) {
+            refreshBtn.disabled = false;
+            if (refreshIcon) refreshIcon.classList.remove('spinning');
+            if (response && !response.error && stats && stats.channelCount > 0) {
+              if (statusEl) statusEl.textContent = 'Database up to date';
+              if (progressEl) progressEl.classList.add('hidden');
+              if (channelCount) {
+                channelCount.textContent = stats.channelCount.toLocaleString();
+                channelCount.classList.remove('pulsing');
               }
-              loadStats();
-            });
+              // Update synced time
+              var now = new Date();
+              var timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              if (lastSync) lastSync.textContent = timeStr;
+            } else {
+              if (statusEl) statusEl.textContent = 'Sync failed';
+              if (channelCount) channelCount.classList.remove('pulsing');
+            }
           });
-        }, 2000);
+        }, 1500);
       });
     });
   }
