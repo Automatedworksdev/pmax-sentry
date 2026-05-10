@@ -702,9 +702,14 @@ body {
   display: block;
 }
 
-/* Channels box with progress - content stays centered */
+/* Channels box - same as others */
 .stat-box-channels {
   justify-content: center;
+}
+
+/* Ensure all stat-boxes align the same way */
+.stat-box .stat-num {
+  margin-top: 4px;
 }
 
 /* Sync progress pinned to bottom, doesn't shift content */
