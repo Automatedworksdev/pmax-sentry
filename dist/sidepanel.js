@@ -881,9 +881,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             var infoDiv = document.createElement('div');
             infoDiv.className = 'placement-info';
+            var catText = p.category ? '[' + p.category.toUpperCase() + ']' : '[UNKNOWN]';
             infoDiv.innerHTML = 
               '<span class="placement-channel">' + p.channel + '</span>' +
-              '<span class="placement-category">' + [' + (p.category ? p.category.toUpperCase() : 'UNKNOWN') + '] + '</span>';
+              '<span class="placement-category">' + catText + '</span>';
             li.appendChild(infoDiv);
             
             var spendSpan = document.createElement('span');
@@ -953,9 +954,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             var infoDiv = document.createElement('div');
             infoDiv.className = 'placement-info';
+            var catText2 = p.category ? '[' + p.category.toUpperCase() + ']' : '[UNKNOWN]';
             infoDiv.innerHTML = 
               '<span class="placement-channel">' + p.channel + '</span>' +
-              '<span class="placement-category">' + [' + (p.category ? p.category.toUpperCase() : 'UNKNOWN') + '] + '</span>';
+              '<span class="placement-category">' + catText2 + '</span>';
             li.appendChild(infoDiv);
             
             var spendSpan = document.createElement('span');

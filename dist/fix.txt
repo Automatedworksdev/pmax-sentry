@@ -1,0 +1,9 @@
+            li.appendChild(checkbox);
+            
+            var infoDiv = document.createElement('div');
+            infoDiv.className = 'placement-info';
+            var catUpper = p.category ? p.category.toUpperCase() : 'UNKNOWN';
+            infoDiv.innerHTML = 
+              '<span class="placement-channel">' + p.channel + '</span>' +
+              '<span class="placement-category">[' + catUpper + ']</span>';
+            li.appendChild(infoDiv);
