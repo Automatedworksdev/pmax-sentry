@@ -1306,14 +1306,6 @@ body {
   accent-color: var(--primary);
 }
 
-/* Category Breakdown Grid */
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin: 20px 0;
-}
-
 .category-card {
   background: white;
   border-radius: 12px;

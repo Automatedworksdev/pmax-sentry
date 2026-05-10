@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMax Sentry v2.2</title>
+  <title>PMax Sentry v3.0</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
   <div id="license-view" class="license-view">
     <img src="images/icon128.png" alt="PMax Sentry" class="logo">
     <h1>PMax Sentry</h1>
-    <p class="subtitle">Intelligence Engine v2.2</p>
+    <p class="subtitle">Intelligence Engine v3.0</p>
     
     <div class="card">
       <h3>Activate License</h3>
@@ -48,7 +48,7 @@
     
     <div class="header-divider"></div>
     
-    <!-- Stats with Icons -->
+    <!-- Clean 3-Card Stats -->
     <div class="dash-stats">
       <div class="stat-box stat-box-channels">
         <div class="stat-icon">
@@ -59,65 +59,46 @@
           </svg>
         </div>
         <span class="stat-num" id="channel-count">0</span>
-        <span class="stat-label">Total Sources</span>
+        <span class="stat-label">Junk Channels</span>
       </div>
-    </div>
-    
-    <!-- Category Breakdown -->
-    <div class="category-grid" id="category-grid">
-      <div class="category-card category-kids">
-        <div class="category-icon">🎮</div>
-        <div class="category-name">Kids Content</div>
-        <div class="category-count" id="kids-count">--</div>
+      <div class="stat-box">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+        </div>
+        <span class="stat-num" id="data-version">3.0</span>
+        <span class="stat-label">Version</span>
       </div>
-      <div class="category-card category-gaming">
-        <div class="category-icon">🎯</div>
-        <div class="category-name">Gaming</div>
-        <div class="category-count" id="gaming-count">--</div>
+      <div class="stat-box stat-box-synced">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+          </svg>
+        </div>
+        <span class="stat-num" id="last-sync">--</span>
+        <span class="stat-label">Synced</span>
       </div>
-      <div class="category-card category-asmr">
-        <div class="category-icon">🎧</div>
-        <div class="category-name">ASMR</div>
-        <div class="category-count" id="asmr-count">--</div>
-      </div>
-      <div class="category-card category-mfa">
-        <div class="category-icon">📱</div>
-        <div class="category-name">Mobile Apps</div>
-        <div class="category-count" id="mfa-count">--</div>
-      </div>
-      <div class="category-card category-news">
-        <div class="category-icon">📰</div>
-        <div class="category-name">News</div>
-        <div class="category-count" id="news-count">--</div>
-      </div>
-      <div class="category-card category-music">
-        <div class="category-icon">🎵</div>
-        <div class="category-name">Music</div>
-        <div class="category-count" id="music-count">--</div>
-      </div>
-    </div>
-    
-    <!-- Footer Info -->
-    <div class="dash-footer">
-      <span class="footer-version">v3.0</span>
-      <span class="footer-sync" id="footer-sync">Synced: --</span>
     </div>
     
     <!-- Status Bar -->
     <div id="status" class="dash-status">Ready to scan</div>
     
-    <!-- Actions - Clean scan flow -->
+    <!-- Actions -->
     <div class="dash-actions">
       <button id="scan-btn" class="dash-btn dash-btn-primary">Scan Placements</button>
       <button id="save-btn" class="dash-btn dash-btn-secondary">Save Report</button>
     </div>
-    
+
     <!-- Tier 1 Results -->
     <div class="result-card">
       <div class="result-header">
         <div class="result-header-left">
           <input type="checkbox" id="select-all-tier1" class="select-all-checkbox" title="Select All">
-          <h3>🔴 Confirmed Waste</h3>
+          <h3><span class="tier-badge tier1">TIER 1</span> Confirmed Waste</h3>
         </div>
         <div class="result-stats">
           <span id="tier1-count">0</span>
@@ -132,7 +113,7 @@
       <div class="result-header">
         <div class="result-header-left">
           <input type="checkbox" id="select-all-tier2" class="select-all-checkbox" title="Select All">
-          <h3>🟡 Suspected Waste</h3>
+          <h3><span class="tier-badge tier2">TIER 2</span> Suspected Waste</h3>
         </div>
         <div class="result-stats">
           <span id="tier2-count">0</span>
@@ -142,18 +123,10 @@
       <ul id="tier2-list" class="placement-list"></ul>
     </div>
     
-    <!-- Category Breakdown -->
-    <div class="result-card">
-      <div class="result-header">
-        <h3>📊 Category Breakdown</h3>
-      </div>
-      <div id="category-breakdown"></div>
-    </div>
-    
     <!-- Footer Actions -->
     <div class="footer-actions">
-      <button id="block-waste-btn" class="footer-btn footer-btn-primary" title="Click to instantly add selected junk placements to your Google Ads Exclusion List.">Block Waste</button>
-      <button id="feed-sentry-btn" class="footer-btn footer-btn-outline" title="Anonymously share these junk IDs to our global database to help protect other users.">Feed the Sentry</button>
+      <button id="block-waste-btn" class="footer-btn footer-btn-primary" title="Add selected to Google Ads exclusions">Block Waste</button>
+      <button id="feed-sentry-btn" class="footer-btn footer-btn-outline" title="Share to global database">Feed the Sentry</button>
     </div>
     
   </div>
