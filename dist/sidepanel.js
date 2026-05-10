@@ -27,12 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
   var channelCount = document.getElementById('channel-count');
   
   // Fetch count from proxy
+  console.log('[Sync] Starting fetch to proxy...');
   fetch('https://pmax-sentry-proxy-git-master-automatedworksdevs-projects.vercel.app/api/stats')
-    .then(r => r.json())
+    .then(r => {
+      console.log('[Sync] Response received:', r.status);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(data => {
+      console.log('[Sync] Data received:', data);
       if (channelCount) channelCount.textContent = data.total.toLocaleString();
     })
-    .catch(() => {
+    .catch(err => {
+      console.error('[Sync] Error:', err.message);
       if (channelCount) channelCount.textContent = '51,448';
     });
   
