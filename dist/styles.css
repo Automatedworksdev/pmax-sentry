@@ -692,9 +692,9 @@ body {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  line-height: 1;
-  margin-top: auto;
-  padding-top: var(--space-2);
+  line-height: 1.2;
+  margin-top: 8px;
+  padding-top: 4px;
 }
 
 /* Channels box with progress - content stays centered */
@@ -1350,4 +1350,26 @@ body {
   margin-top: 20px;
   font-size: 11px;
   color: #9ca3af;
+}
+
+/* Tier Badges */
+.tier-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+
+.tier-badge.tier1 {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.tier-badge.tier2 {
+  background: #fef3c7;
+  color: #d97706;
 }
