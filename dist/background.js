@@ -25,7 +25,33 @@ const JUNK_KEYWORDS = [
   'clickbait', 'prank', 'challenge', 'reaction video', 'meme'
 ];
 
-// Initialize
+// Initialize - fetch stats from proxy on startup
+chrome.runtime.onStartup.addListener(() => {
+  fetchStatsFromProxy();
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  fetchStatsFromProxy();
+});
+
+// Fetch stats from proxy
+async function fetchStatsFromProxy() {
+  try {
+    const response = await fetch(`${PROXY_URL}/api/stats`);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+    
+    await chrome.storage.local.set({
+      channelCount: data.total,
+      dataVersion: DATA_VERSION,
+      lastSyncAt: Date.now()
+    });
+    console.log('[Background] Fetched stats from proxy:', data.total);
+  } catch (err) {
+    console.error('[Background] Failed to fetch stats:', err.message);
+  }
+}
+
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
 });
