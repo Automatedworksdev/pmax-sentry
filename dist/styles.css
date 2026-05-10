@@ -693,8 +693,8 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   line-height: 1.2;
-  margin-top: 8px;
-  padding-top: 4px;
+  margin-top: 12px;
+  padding-top: 6px;
 }
 
 /* Channels box with progress - content stays centered */
