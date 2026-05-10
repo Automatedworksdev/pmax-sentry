@@ -124,18 +124,31 @@ async function classifyChannels(channels, licenseKey) {
     // FINAL LOGIC: Database = Tier 1 (Confirmed), Keywords = Tier 2 (Suspected)
     if (result.results) {
       result.results = result.results.map(r => {
-        // If proxy returned a real match (not GENERAL/UNKNOWN), it's Tier 1
-        if (r.tier === 'tier1' || (r.category && r.category !== 'General' && r.category !== 'UNKNOWN')) {
-          r.tier = 'tier1'; // Force Tier 1 for database matches
-          r.source = 'database'; // Track source
-        } 
-        // Otherwise check keywords for Tier 2
-        else {
+        // Database match: has a placementId or is explicitly flagged as in database
+        const isDatabaseMatch = r.placementId || r.inDatabase || r.isMatch || r.tier === 'tier1';
+        
+        if (isDatabaseMatch) {
+          // Force Tier 1 for database matches
+          r.tier = 'tier1';
+          r.source = 'database';
+          if (!r.category || r.category === 'General' || r.category === 'UNKNOWN') {
+            // Assign category based on name if missing
+            const normalized = r.name?.toLowerCase() || '';
+            const match = checkSuspectedKeywords(normalized);
+            if (match) r.category = match.category;
+            else r.category = 'General';
+          }
+        } else if (r.category && r.category !== 'General' && r.category !== 'UNKNOWN') {
+          // Has a category but not from database = Tier 2
+          r.tier = 'tier2';
+          r.source = 'keyword';
+        } else {
+          // No match at all - check keywords
           const normalized = r.name?.toLowerCase() || '';
           const match = checkSuspectedKeywords(normalized);
           if (match) {
             r.category = match.category;
-            r.tier = 'tier2'; // Keywords = Tier 2
+            r.tier = 'tier2';
             r.source = 'keyword';
           } else {
             r.tier = 'none';
