@@ -124,29 +124,26 @@ async function classifyChannels(channels, licenseKey) {
     // FINAL LOGIC: Database = Tier 1 (Confirmed), Keywords = Tier 2 (Suspected)
     if (result.results) {
       result.results = result.results.map(r => {
-        // Database match: has a placementId or is explicitly flagged as in database
-        // STRICT: Only Tier 1 if explicitly from database
-        const isDatabaseMatch = r.inDatabase === true || r.isMatch === true || r.fromDatabase === true;
+        // If proxy returned a real category (not Low Quality/UNKNOWN), it's from database = Tier 1
+        const hasRealCategory = r.category && r.category !== 'Low Quality' && r.category !== 'UNKNOWN' && r.category !== 'General';
         
-        if (isDatabaseMatch) {
-          // Force Tier 1 for database matches
+        if (hasRealCategory) {
+          // Database match = Tier 1 (Confirmed)
           r.tier = 'tier1';
           r.source = 'database';
-          if (!r.category || r.category === 'Low Quality' || r.category === 'UNKNOWN') {
-            // Assign category based on name if missing
-            const normalized = r.name?.toLowerCase() || '';
-            const match = checkSuspectedKeywords(normalized);
-            if (match) r.category = match.category;
-            else r.category = 'Low Quality';
-          }
-        } else if (r.category && r.category !== 'Low Quality' && r.category !== 'UNKNOWN') {
-          // Has a category but not from database = Tier 2
-          r.tier = 'tier2';
-          r.source = 'keyword';
         } else {
-          // No match at all - check keywords
+          // No database match - check keywords for Tier 2
           const normalized = r.name?.toLowerCase() || '';
           const match = checkSuspectedKeywords(normalized);
+          if (match) {
+            r.category = match.category;
+            r.tier = 'tier2';
+            r.source = 'keyword';
+          } else {
+            r.tier = 'none';
+          }
+        }
+        return r;
           if (match) {
             r.category = match.category;
             r.tier = 'tier2';
