@@ -676,6 +676,8 @@ body {
 }
 
 .stat-num {
+  text-align: center;
+  width: 100%;
   font-size: 24px;
   font-weight: 700;
   color: var(--primary);
@@ -963,6 +965,8 @@ body {
   }
   
   .stat-num {
+  text-align: center;
+  width: 100%;
     font-size: 16px;
   }
 }
