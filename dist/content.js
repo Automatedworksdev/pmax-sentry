@@ -125,21 +125,27 @@
   // Highlight row
   function highlightRow(row, classification) {
     const colors = classification.tier === 'tier1' ? COLORS.tier1 : COLORS.tier2;
-    const catColor = CATEGORY_COLORS[classification.category] || CATEGORY_COLORS['Low Quality'];
+    // Ensure we always have a category - default to 'Low Quality' if missing
+    const category = classification.category || 'Low Quality';
+    const catColor = CATEGORY_COLORS[category] || CATEGORY_COLORS['Low Quality'];
     
     row.style.backgroundColor = colors.bg;
     row.style.borderLeft = `4px solid ${colors.border}`;
     row.dataset.sentryTier = classification.tier;
-    row.dataset.sentryCategory = classification.category;
+    row.dataset.sentryCategory = category;
     
-    // Add category badge to first cell
+    // Add category badge to first cell - ALWAYS add one, remove any existing first
     const cells = row.querySelectorAll('td');
     const nameCell = cells[0];
-    if (nameCell && !nameCell.querySelector('.sentry-cat-badge')) {
+    if (nameCell) {
+      // Remove existing badge if present
+      const existingBadge = nameCell.querySelector('.sentry-cat-badge');
+      if (existingBadge) existingBadge.remove();
+      
       const badge = document.createElement('span');
       badge.className = 'sentry-cat-badge';
       badge.style.cssText = `display:inline-block;margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;background:${catColor};color:white;font-weight:500;`;
-      badge.textContent = classification.category;
+      badge.textContent = category;
       nameCell.appendChild(badge);
     }
   }
