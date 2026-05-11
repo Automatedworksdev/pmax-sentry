@@ -881,7 +881,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             var infoDiv = document.createElement('div');
             infoDiv.className = 'placement-info';
-            var catText = p.category ? '[' + p.category.toUpperCase() + ']' : '[UNKNOWN]';
+            var catText = p.category ? '[' + p.category + ']' : '[LOW QUALITY]';
             infoDiv.innerHTML = 
               '<span class="placement-channel">' + p.channel + '</span>' +
               '<span class="placement-category">' + catText + '</span>';
@@ -954,7 +954,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             var infoDiv = document.createElement('div');
             infoDiv.className = 'placement-info';
-            var catText2 = p.category ? '[' + p.category.toUpperCase() + ']' : '[UNKNOWN]';
+            var catText2 = p.category ? '[' + p.category + ']' : '[LOW QUALITY]';
             infoDiv.innerHTML = 
               '<span class="placement-channel">' + p.channel + '</span>' +
               '<span class="placement-category">' + catText2 + '</span>';
