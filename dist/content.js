@@ -248,6 +248,9 @@
       }
       
       // Track category totals
+      if (!classification.category) {
+        classification.category = 'Low Quality';
+      }
       const cat = classification.category;
       if (!categoryTotals[cat]) {
         categoryTotals[cat] = { count: 0, spend: 0, tier1: 0, tier2: 0 };

@@ -315,14 +315,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'getStats') {
     chrome.storage.local.get(['lastSyncAt', 'dataVersion', 'channelCount', 'isTrial']).then(data => {
+      // If no lastSyncAt, use current time
+      const syncedAt = data.lastSyncAt || Date.now();
       sendResponse({
         channelCount: data.channelCount || 0,
         version: data.dataVersion || DATA_VERSION,
-        syncedAt: data.lastSyncAt,
+        syncedAt: syncedAt,
         isTrial: data.isTrial || false
       });
     }).catch(err => {
-      sendResponse({ channelCount: 0, version: DATA_VERSION, syncedAt: null });
+      sendResponse({ channelCount: 0, version: DATA_VERSION, syncedAt: Date.now() });
     });
     return true;
   }
