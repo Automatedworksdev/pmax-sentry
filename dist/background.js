@@ -135,14 +135,15 @@ async function classifyChannels(channels, licenseKey) {
           normalizedName.includes('cocomelon') ||
           normalizedName.includes('baby shark') ||
           normalizedName.includes('peppa pig') ||
-          normalizedName.includes('kids tv');
+          normalizedName.includes('kids tv') ||
+          normalizedName.includes('cartoon network');
         
         if (isKnownDatabaseEntry) {
           // Force Tier 1 for known database entries
           r.tier = 'tier1';
           r.source = 'database';
           // Assign proper category based on name
-          if (normalizedName.includes('cocomelon') || normalizedName.includes('baby shark') || normalizedName.includes('peppa pig') || normalizedName.includes('kids')) {
+          if (normalizedName.includes('cocomelon') || normalizedName.includes('baby shark') || normalizedName.includes('peppa pig') || normalizedName.includes('kids') || normalizedName.includes('cartoon network')) {
             r.category = 'Kids';
           }
         } else if (r.category && r.category !== 'Low Quality') {
@@ -226,6 +227,8 @@ function checkSuspectedKeywords(channelName) {
     { keyword: 'daily', category: 'News' },
     { keyword: 'asmr', category: 'ASMR' },
     { keyword: 'sleep sounds', category: 'ASMR' },
+    { keyword: 'meditation', category: 'ASMR' },
+    { keyword: 'relaxation', category: 'ASMR' },
     { keyword: 'breaking news', category: 'News' },
     { keyword: 'live news', category: 'News' },
     { keyword: 'music playlist', category: 'Music' },
